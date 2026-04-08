@@ -1,0 +1,31 @@
+/* KANBAN / TABLES - ADAPT TO GLASS */
+.kanban-board {
+  height: 100%;
+  gap: 16px;
+  min-height: 600px;
+}
+
+.kanban-col {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+}
+
+/* FINDINGS KANBAN CARDS - HIGH FIDELITY */
+.kanban-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.kanban-card:hover {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 8px 30px rgba(59, 130, 246, 0.2);
+}
