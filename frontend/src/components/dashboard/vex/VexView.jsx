@@ -1,259 +1,302 @@
-import React, { useState } from 'react';
-import { Download, FileCheck, FileCode, Home, ChevronRight, CheckCircle2, X, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Key, RefreshCw, AlertOctagon, Filter, Download, AlertTriangle, ShieldCheck, Activity, FileText } from 'lucide-react';
+import { getVexDocuments, downloadVexDocument } from '../../../api/vex';
+import { formatTimestamp, formatJobId } from '../../../utils/formatters';
 
 const ComplianceView = () => {
-    const [selectedDoc, setSelectedDoc] = useState(null);
+    const [docs, setDocs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState('ALL');
+    const [jobFilter, setJobFilter] = useState('All Jobs');
+    const [sourceFilter, setSourceFilter] = useState('ALL'); // 'ALL' | 'uploaded' | 'live_telemetry'
+    const [error, setError] = useState(null);
 
-    const compData = [
-        { 
-            id: 'VEX-2026-0142', cve: 'CVE-2026-2144', just: 'Vulnerable_Code_Not_Reachable', date: '2026-03-14', icon: <FileCheck size={14} style={{color: '#22c55e'}} />,
-            extraInfo: { desc: 'A remote code execution vulnerability exists in the serialization module.', package: 'com.fasterxml.jackson.core:jackson-databind' }
-        },
-        { 
-            id: 'VEX-2026-0138', cve: 'CVE-2026-1882', just: 'Inline_Mitigations_Already_Exist', date: '2026-03-12', icon: <FileCode size={14} style={{color: '#eab308'}} />,
-            extraInfo: { desc: 'Denial of Service (DoS) vulnerability due to improper input validation.', package: 'org.yaml:snakeyaml' }
-        },
-        { 
-            id: 'VEX-2026-0135', cve: 'CVE-2025-4752', just: 'Component_Not_Present', date: '2026-03-10', icon: <FileCheck size={14} style={{color: '#22c55e'}} />,
-            extraInfo: { desc: 'Path traversal vulnerability leading to unauthorized file access.', package: 'org.apache.tomcat.embed:tomcat-embed-core' }
-        },
-        { 
-            id: 'VEX-2026-0129', cve: 'CVE-2026-1033', just: 'Vulnerable_Code_Not_In_Execute_Path', date: '2026-03-08', icon: <FileCode size={14} style={{color: '#eab308'}} />,
-            extraInfo: { desc: 'Cross-Site Scripting (XSS) vulnerability in the rendering engine.', package: 'org.springframework:spring-webmvc' }
-        },
-        { 
-            id: 'VEX-2026-0112', cve: 'CVE-2026-3401', just: 'Vulnerable_Code_Cannot_Be_Controlled_By_Adversary', date: '2026-03-02', icon: <FileCheck size={14} style={{color: '#22c55e'}} />,
-            extraInfo: { desc: 'Information disclosure vulnerability due to improper error handling.', package: 'io.netty:netty-codec-http' }
-        },
-    ];
+    const fetchDocs = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await getVexDocuments({
+                status: statusFilter === 'ALL' ? undefined : statusFilter.toLowerCase().replace(/ /g, '_'),
+                source_type: sourceFilter === 'ALL' ? undefined : sourceFilter,
+            });
+            setDocs(data || []);
+        } catch (err) {
+            console.error(err);
+            setError(err.response?.data?.error || 'Failed to load VEX documents.');
+        } finally {
+            setLoading(false);
+        }
+    }, [statusFilter, sourceFilter]);
+
+    useEffect(() => {
+        fetchDocs();
+    }, [fetchDocs]);
+
+    // Unique job IDs for JOB dropdown
+    const uniqueJobs = Array.from(new Set(docs.map(d => d.job_id).filter(Boolean)));
+
+    // Client-side filtering double check
+    const filteredDocs = docs.filter(doc => {
+        if (jobFilter !== 'All Jobs' && formatJobId(doc.job_id) !== jobFilter && doc.job_id !== jobFilter) {
+            return false;
+        }
+        if (sourceFilter !== 'ALL') {
+            if (sourceFilter === 'live_telemetry' && doc.source_type !== 'live_telemetry') return false;
+            if (sourceFilter === 'uploaded' && doc.source_type !== 'uploaded') return false;
+        }
+        return true;
+    });
+
+    const totalDocs = filteredDocs.length;
+    const validSigs = filteredDocs.filter(d => d.signature_valid).length;
+    const invalidSigs = totalDocs - validSigs;
+
+    const getStatusStyle = (status) => {
+        const s = (status || '').toUpperCase();
+        if (s === 'UNDER_INVESTIGATION' || s === 'UNDER INVESTIGATION') {
+            return { color: '#f8fafc', borderColor: 'rgba(255,255,255,0.1)', bg: 'rgba(255,255,255,0.03)', label: 'INVESTIGATING' };
+        }
+        if (s === 'NOT_AFFECTED' || s === 'NOT AFFECTED') {
+            return { color: '#22c55e', borderColor: 'rgba(34,197,94,0.2)', bg: 'rgba(34,197,94,0.05)', label: 'NOT AFFECTED' };
+        }
+        if (s === 'AFFECTED') {
+            return { color: '#ef4444', borderColor: 'rgba(239,68,68,0.2)', bg: 'rgba(239,68,68,0.05)', label: 'AFFECTED' };
+        }
+        if (s === 'FIXED') {
+            return { color: '#38bdf8', borderColor: 'rgba(56,189,248,0.2)', bg: 'rgba(56,189,248,0.05)', label: 'FIXED' };
+        }
+        return { color: '#94a3b8', borderColor: 'rgba(255,255,255,0.1)', bg: 'rgba(255,255,255,0.03)', label: (status || 'UNKNOWN').toUpperCase().replace(/_/g, ' ') };
+    };
+
+    const formatDateCustom = (isoString) => {
+        if (!isoString) return '';
+        const d = new Date(isoString);
+        return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
 
     return (
-        <div className="view-section" style={{ display: 'block', position: 'relative' }}>
-            <div className="view-header" style={{ marginBottom: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a8a29e', fontSize: '12px', marginBottom: '8px' }}>
-                    <Home size={14} /> <ChevronRight size={14} /> Compliance
+        <div>
+            {/* Page Header */}
+            <div className="page-header">
+                <div className="page-header-left">
+                    <h1 className="page-header-title">VEX / Compliance</h1>
+                    <div className="page-header-meta">
+                        <span className="page-header-hud">CYCLONEDX VEX · ECDSA SIGNED</span>
+                    </div>
                 </div>
-                <h2 style={{ fontSize: '24px', fontWeight: '500', color: '#e7e5e4', margin: 0 }}>VEX Compliance Proofs</h2>
-            </div>
-            
-            <div className="glass-panel" style={{ padding: '20px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                        <tr>
-                            <th style={{ textAlign: 'left', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '0.85rem', fontWeight: '500' }}>VEX ID</th>
-                            <th style={{ textAlign: 'left', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '0.85rem', fontWeight: '500' }}>CVE</th>
-                            <th style={{ textAlign: 'left', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '0.85rem', fontWeight: '500' }}>Justification</th>
-                            <th style={{ textAlign: 'left', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '0.85rem', fontWeight: '500' }}>Date</th>
-                            <th style={{ textAlign: 'left', padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '0.85rem', fontWeight: '500' }}>Proof</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {compData.map((item, i) => (
-                            <tr 
-                                key={i} 
-                                style={{ cursor: 'pointer', transition: 'background 0.2s' }}
-                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                                onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                                onClick={() => setSelectedDoc(item)}
-                            >
-                                <td style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '8px', color: '#e2e8f0', fontSize: '14px' }}>
-                                    {item.icon} <span style={{ fontFamily: 'monospace' }}>{item.id}</span>
-                                </td>
-                                <td style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#cbd5e1', fontSize: '14px' }}>{item.cve}</td>
-                                <td style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#cbd5e1', fontSize: '14px' }}>{item.just}</td>
-                                <td style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#cbd5e1', fontSize: '14px' }}>{item.date}</td>
-                                <td style={{ padding: '14px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(item, null, 2));
-                                            const downloadAnchorNode = document.createElement('a');
-                                            downloadAnchorNode.setAttribute("href", dataStr);
-                                            downloadAnchorNode.setAttribute("download", `${item.id}_proof.json`);
-                                            document.body.appendChild(downloadAnchorNode);
-                                            downloadAnchorNode.click();
-                                            downloadAnchorNode.remove();
-                                        }}
-                                        style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', cursor: 'pointer', transition: 'all 0.2s' }}
-                                        onMouseOver={(e) => {
-                                            e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                                        }}
-                                        onMouseOut={(e) => {
-                                            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-                                        }}
-                                    >
-                                        <Download size={14} /> JSON
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div className="page-header-actions">
+                    <button className="btn btn-ghost btn-sm">
+                        <Key size={13} /> View Public Key
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={fetchDocs}>
+                        <RefreshCw size={13} /> Refresh
+                    </button>
+                </div>
             </div>
 
-            {selectedDoc && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.6)',
-                    backdropFilter: 'blur(4px)',
-                    zIndex: 1000,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '20px'
-                }} onClick={() => setSelectedDoc(null)}>
-                    <div style={{
-                        background: '#0f172a', /* Dark slate background matching the site */
-                        border: '1px solid #1e293b',
-                        borderRadius: '16px',
-                        padding: '24px',
-                        width: '100%',
-                        maxWidth: '540px',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-                        display: 'flex',
-                        flexDirection: 'column'
-                    }} onClick={(e) => e.stopPropagation()}>
-                        
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-                            <div>
-                                <h3 style={{ fontSize: '20px', fontWeight: '600', margin: 0, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    VEX Report
-                                </h3>
-                                <p style={{ fontSize: '13px', color: '#94a3b8', margin: '4px 0 0 0', fontFamily: 'monospace' }}>{selectedDoc.id}</p>
-                            </div>
-                            <button 
-                                onClick={() => setSelectedDoc(null)}
-                                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}
-                                onMouseOver={(e) => e.currentTarget.style.color = '#f8fafc'}
-                                onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
+            {/* Error / Alert Box */}
+            {error && (
+                <div className="alert alert-error mb-6">
+                    <AlertTriangle size={14} />
+                    {error}
+                </div>
+            )}
 
-                        <div style={{ 
-                            background: '#1e293b', 
-                            borderRadius: '12px', 
-                            padding: '20px', 
-                            marginBottom: '16px',
-                            border: '1px solid #334155'
-                        }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '16px', alignItems: 'center', marginBottom: '16px' }}>
-                                <span style={{ color: '#94a3b8', fontWeight: '500', fontSize: '14px' }}>CVE</span>
-                                <span style={{ color: '#f8fafc', fontSize: '14px', fontWeight: '500' }}>{selectedDoc.cve}</span>
-                            </div>
-                            
-                            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '16px', alignItems: 'center', marginBottom: '16px' }}>
-                                <span style={{ color: '#94a3b8', fontWeight: '500', fontSize: '14px' }}>Status</span>
-                                <span style={{ 
-                                    display: 'inline-flex', 
-                                    alignItems: 'center', 
-                                    gap: '6px', 
-                                    padding: '4px 10px', 
-                                    background: 'rgba(59, 130, 246, 0.1)', 
-                                    border: '1px solid rgba(59, 130, 246, 0.2)', 
-                                    borderRadius: '16px', 
-                                    color: '#60a5fa', 
-                                    fontSize: '13px', 
-                                    fontWeight: '500', 
-                                    width: 'max-content',
-                                }}>
-                                    <CheckCircle2 size={14} /> Not_Affected
-                                </span>
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '16px', alignItems: 'start', marginBottom: '16px' }}>
-                                <span style={{ color: '#94a3b8', fontWeight: '500', fontSize: '14px', marginTop: '2px' }}>Justification</span>
-                                <span style={{ color: '#e2e8f0', fontSize: '14px', lineHeight: '1.5' }}>{selectedDoc.just.replace(/_/g, ' ')}</span>
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '16px', alignItems: 'center' }}>
-                                <span style={{ color: '#94a3b8', fontWeight: '500', fontSize: '14px' }}>Format</span>
-                                <span style={{ color: '#e2e8f0', fontSize: '14px' }}>Machine-readable (JSON) / {selectedDoc.date}</span>
-                            </div>
-                        </div>
-
-                        {/* Extra Vulnerability Details Section */}
-                        <div style={{ 
-                            background: 'rgba(239, 68, 68, 0.05)', 
-                            borderRadius: '12px', 
-                            padding: '16px 20px', 
-                            marginBottom: '24px',
-                            border: '1px solid rgba(239, 68, 68, 0.1)'
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                                <AlertTriangle size={16} color="#f87171" />
-                                <h4 style={{ color: '#f87171', fontSize: '14px', fontWeight: '600', margin: 0 }}>Vulnerability Details</h4>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                <div>
-                                    <span style={{ color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Description</span>
-                                    <span style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: '1.5', display: 'block' }}>{selectedDoc.extraInfo?.desc}</span>
-                                </div>
-                                <div>
-                                    <span style={{ color: '#94a3b8', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Affected Package</span>
-                                    <span style={{ color: '#e2e8f0', fontSize: '13px', fontFamily: 'monospace', background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: '4px' }}>{selectedDoc.extraInfo?.package}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: '#64748b', fontSize: '12px', lineHeight: '1.4', maxWidth: '280px' }}>
-                                <div style={{
-                                    width: '16px',
-                                    height: '16px',
-                                    borderRadius: '50%',
-                                    background: '#334155',
-                                    color: '#94a3b8',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '10px',
-                                    fontWeight: 'bold',
-                                    flexShrink: 0,
-                                    marginTop: '2px'
-                                }}>i</div>
-                                <span>Export for auditors and platforms; stays linked to runtime evidence.</span>
-                            </div>
-
-                            <button 
-                                onClick={() => {
-                                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(selectedDoc, null, 2));
-                                    const downloadAnchorNode = document.createElement('a');
-                                    downloadAnchorNode.setAttribute("href", dataStr);
-                                    downloadAnchorNode.setAttribute("download", `${selectedDoc.id}_proof.json`);
-                                    document.body.appendChild(downloadAnchorNode);
-                                    downloadAnchorNode.click();
-                                    downloadAnchorNode.remove();
-                                }}
-                                style={{ 
-                                    padding: '8px 16px', 
-                                    background: '#3b82f6', 
-                                    border: 'none', 
-                                    borderRadius: '8px', 
-                                    fontSize: '13px', 
-                                    fontWeight: '500', 
-                                    color: '#ffffff',
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    gap: '6px',
-                                    cursor: 'pointer',
-                                    transition: 'background 0.2s ease',
-                                    boxShadow: '0 4px 6px -1px rgba(59, 130, 246, 0.2), 0 2px 4px -1px rgba(59, 130, 246, 0.1)'
-                                }}
-                                onMouseOver={(e) => e.currentTarget.style.background = '#2563eb'}
-                                onMouseOut={(e) => e.currentTarget.style.background = '#3b82f6'}
-                                title="Download JSON Proof"
-                            >
-                                <Download size={16} /> Export JSON
-                            </button>
-                        </div>
+            {invalidSigs > 0 && (
+                <div className="alert alert-error mb-6" style={{ alignItems: 'flex-start' }}>
+                    <div style={{ marginTop: '2px' }}><AlertOctagon size={16} /></div>
+                    <div>
+                        <div style={{ fontWeight: '600', marginBottom: '4px', letterSpacing: '0.5px' }}>SIGNATURE VERIFICATION FAILED</div>
+                        <div style={{ opacity: 0.9 }}>{invalidSigs} VEX document(s) failed cryptographic signature check. These reports must not be treated as cryptographically verified.</div>
                     </div>
                 </div>
             )}
+
+            {/* Stats row */}
+            <div className="stat-grid-3 mb-6">
+                <div className="stat-card">
+                    <div className="stat-card-label">TOTAL DOCUMENTS</div>
+                    <div className="stat-card-value">{loading ? '—' : totalDocs}</div>
+                    <div className="stat-card-sub">VEX statements generated</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-card-label">VALID SIGNATURES</div>
+                    <div className="stat-card-value" style={{ color: 'var(--color-verified)' }}>
+                        {loading ? '—' : validSigs}
+                    </div>
+                    <div className="stat-card-sub">ECDSA verified</div>
+                </div>
+                <div className="stat-card">
+                    <div className="stat-card-label">INVALID SIGNATURES</div>
+                    <div className="stat-card-value" style={{ color: 'var(--color-critical)' }}>
+                        {loading ? '—' : invalidSigs}
+                    </div>
+                    <div className="stat-card-sub">Review required</div>
+                </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="filter-bar mb-6" style={{ flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <Filter size={13} style={{ color: 'var(--text-muted)' }} />
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase' }}>FILTER:</span>
+                    {['ALL', 'NOT AFFECTED', 'AFFECTED', 'UNDER INVESTIGATION'].map(f => (
+                        <button
+                            key={f}
+                            className={`filter-chip ${statusFilter === f ? 'active' : ''}`}
+                            onClick={() => setStatusFilter(f)}
+                        >
+                            {f}
+                        </button>
+                    ))}
+                </div>
+
+                <div style={{ width: '1px', height: '24px', background: 'var(--border-subtle)', margin: '0 8px' }}></div>
+
+                {/* Job Filter Dropdown */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase' }}>JOB:</span>
+                    <select
+                        className="select"
+                        value={jobFilter}
+                        onChange={e => setJobFilter(e.target.value)}
+                        style={{ minWidth: 120 }}
+                    >
+                        <option value="All Jobs">All Jobs</option>
+                        {uniqueJobs.map(jid => (
+                            <option key={jid} value={jid}>{formatJobId(jid)}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Source Filter Dropdown (Live Telemetry vs Uploaded Ones) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase' }}>SOURCE:</span>
+                    <select
+                        className="select"
+                        value={sourceFilter}
+                        onChange={e => setSourceFilter(e.target.value)}
+                        style={{ minWidth: 170, color: sourceFilter === 'live_telemetry' ? '#c084fc' : 'inherit' }}
+                    >
+                        <option value="ALL">All Sources</option>
+                        <option value="uploaded">Uploaded ones</option>
+                        <option value="live_telemetry">Live Telemetry (ETW)</option>
+                    </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginLeft: 'auto' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: 1 }}>
+                        {totalDocs} DOCUMENTS
+                    </span>
+                </div>
+            </div>
+
+            {/* Table Card */}
+            <div className="card">
+                {loading ? (
+                    <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        Loading VEX documents...
+                    </div>
+                ) : filteredDocs.length === 0 ? (
+                    <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        No VEX documents found for the selected filter.
+                    </div>
+                ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead>
+                                <tr>
+                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>VEX ID</th>
+                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>CVE ID</th>
+                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>JOB / SOURCE</th>
+                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>STATUS</th>
+                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>JUSTIFICATION</th>
+                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>SIGNATURE</th>
+                                    <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>GENERATED</th>
+                                    <th style={{ padding: '12px 16px', textAlign: 'right', fontSize: '11px', color: '#94a3b8', fontWeight: 600, letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>DOWNLOAD PDF</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredDocs.map((doc, idx) => {
+                                    const styleInfo = getStatusStyle(doc.status);
+                                    
+                                    const formattedDate = formatDateCustom(doc.generated_at);
+                                    const isInvalidSig = doc.signature_valid === false && doc.signature;
+                                    const isLiveETW = doc.source_type === 'live_telemetry';
+
+                                    return (
+                                        <tr key={doc.vex_id || idx}>
+                                            <td style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#94a3b8', fontSize: '12px', fontFamily: 'monospace' }}>
+                                                {doc.vex_id?.slice(0, 16)}…
+                                            </td>
+                                            <td style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc', fontSize: '13px', fontWeight: 600, fontFamily: 'monospace' }}>
+                                                {doc.cve_id}
+                                            </td>
+                                            <td style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                    <span style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: '#94a3b8', fontSize: '12px', fontFamily: 'monospace' }}>
+                                                        {formatJobId(doc.job_id)}
+                                                    </span>
+                                                    <span style={{
+                                                        fontSize: '10px',
+                                                        fontFamily: 'var(--font-mono)',
+                                                        padding: '2px 6px',
+                                                        borderRadius: '4px',
+                                                        fontWeight: 600,
+                                                        border: isLiveETW ? '1px solid rgba(168, 85, 247, 0.4)' : '1px solid rgba(34, 197, 94, 0.3)',
+                                                        background: isLiveETW ? 'rgba(168, 85, 247, 0.1)' : 'rgba(34, 197, 94, 0.05)',
+                                                        color: isLiveETW ? '#c084fc' : '#22c55e',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '3px',
+                                                    }}>
+                                                        {isLiveETW ? <Activity size={10} /> : <FileText size={10} />}
+                                                        {isLiveETW ? 'LIVE ETW' : 'UPLOADED'}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                <span style={{ padding: '4px 8px', borderRadius: '4px', border: `1px solid ${styleInfo.borderColor}`, background: styleInfo.bg, color: styleInfo.color, fontSize: '11px', fontWeight: 600, letterSpacing: '0.05em' }}>
+                                                    {styleInfo.label}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#94a3b8', fontSize: '13px' }}>
+                                                {doc.justification}
+                                            </td>
+                                            <td style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                {doc.signature_valid ? (
+                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#22c55e', fontSize: '10px', fontFamily: 'monospace', border: '1px solid rgba(34, 197, 94, 0.3)', background: 'rgba(34, 197, 94, 0.05)', padding: '4px 8px', borderRadius: '4px' }}>
+                                                        <ShieldCheck size={12} /> ECDSA VALID
+                                                    </span>
+                                                ) : isInvalidSig ? (
+                                                    <span style={{ display: 'inline-flex', alignItems: 'flex-start', gap: '4px', color: '#ef4444', fontSize: '10px', fontFamily: 'monospace', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.05)', padding: '4px 8px', borderRadius: '4px', lineHeight: 1.2 }}>
+                                                        <AlertOctagon size={12} style={{ flexShrink: 0, marginTop: '1px' }} /> 
+                                                        <span>SIGNATURE VERIFICATION<br/>FAILED</span>
+                                                    </span>
+                                                ) : (
+                                                    <span style={{ color: '#94a3b8', fontSize: '11px' }}>UNSIGNED</span>
+                                                )}
+                                            </td>
+                                            <td style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#94a3b8', fontSize: '12px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                                                {formattedDate}
+                                            </td>
+                                            <td style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', textAlign: 'right' }}>
+                                                <button
+                                                    onClick={() => downloadVexDocument(doc.vex_id)}
+                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38bdf8', fontSize: '12px', fontWeight: 600, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.25)', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer' }}
+                                                    title={`Download signed VEX PDF compliance report for ${isLiveETW ? 'Live ETW Telemetry' : 'Uploaded SBOM'}`}
+                                                >
+                                                    <Download size={13} /> PDF
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

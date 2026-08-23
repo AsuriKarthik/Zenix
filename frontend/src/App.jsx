@@ -1,119 +1,110 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import LandingPage from './components/dashboard/LandingPage';
-import Dashboard from './components/dashboard/Dashboard';
-import { X, Shield } from 'lucide-react';
+/**
+ * Zenix App — Root component
+ *
+ * Routing:
+ *   /login       → LoginPage (public)
+ *   /app/*       → AppShell (protected)
+ *     /app/dashboard     → Dashboard
+ *     /app/jobs          → Jobs
+ *     /app/findings      → Findings
+ *     /app/evidence      → EvidenceViewer
+ *     /app/vex           → VexCompliance
+ *     /app/status        → SystemStatus
+ *     /app/settings/*    → Settings (Layout + sub-routes)
+ *   /            → redirect based on auth
+ *
+ * Session check:
+ *   On mount, GET /api/auth/me to restore session.
+ *   Loading screen shown during check.
+ */
 
-function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
+import React, { useEffect, useState } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 
+import { useAuth } from './hooks/useAuth';
+
+// Layout
+import AppShell from './components/layout/AppShell';
+import LoadingScreen from './components/layout/LoadingScreen';
+
+// Auth
+import LoginPage from './components/auth/LoginPage';
+
+// Pages
+import Dashboard     from './pages/Dashboard';
+import Jobs          from './pages/Jobs';
+import Findings      from './pages/Findings';
+import EvidenceViewer from './pages/EvidenceViewer';
+import VexView from './components/dashboard/vex/VexView';
+import SystemStatus  from './pages/SystemStatus';
+
+
+// Settings
+import SettingsLayout    from './pages/Settings/SettingsLayout';
+import AccountSettings   from './pages/Settings/AccountSettings';
+import EtwAccessSettings from './pages/Settings/EtwAccessSettings';
+import ApiStatus         from './pages/Settings/ApiStatus';
+
+export default function App() {
+  const { isAuthenticated, checkSession } = useAuth();
+  const location = useLocation();
+  const [loadingDone, setLoadingDone] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
+
+  // Check session on mount
   useEffect(() => {
-    // Check persistence
-    const auth = localStorage.getItem('zenix_auth');
-    if (auth === 'true') {
-      setIsLoggedIn(true);
-    }
-  }, []);
+    checkSession().finally(() => setSessionChecked(true));
+  }, [checkSession]);
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    const email = e.target[0].value;
-    const password = e.target[1].value;
+  // Show loading screen until both session is checked AND loading animation is done
+  const showLoading = !sessionChecked || !loadingDone;
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      alert("Please enter a valid email address.");
-      return;
-    }
-
-    const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
-    if (!passwordRegex.test(password)) {
-      alert("Password must be at least 8 characters, include one uppercase letter and one number.");
-      return;
-    }
-
-    localStorage.setItem('zenix_auth', 'true');
-    setIsLoggedIn(true);
-    setShowLoginModal(false);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('zenix_auth');
-    setIsLoggedIn(false);
-  };
-
-  const openLogin = () => setShowLoginModal(true);
-  const closeLogin = () => setShowLoginModal(false);
+  if (showLoading) {
+    return (
+      <AnimatePresence>
+        <LoadingScreen isReady={sessionChecked} onComplete={() => setLoadingDone(true)} />
+      </AnimatePresence>
+    );
+  }
 
   return (
-    <div className="app-container">
+    <>
       <Routes>
-        <Route 
-          path="/" 
-          element={isLoggedIn ? <Navigate to="/dashboard/overview" /> : <LandingPage onLogin={openLogin} />} 
+        {/* Root redirect */}
+        <Route
+          path="/"
+          element={<Navigate to={isAuthenticated ? '/app/dashboard' : '/login'} replace />}
         />
-        <Route 
-          path="/dashboard/*" 
-          element={isLoggedIn ? <Dashboard onLogout={handleLogout} /> : <Navigate to="/" />} 
-        />
-        <Route path="*" element={<Navigate to="/" />} />
+
+        {/* Login */}
+        <Route path="/login" element={<LoginPage />} />
+
+        {/* Protected app shell */}
+        <Route path="/app" element={<AppShell />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="jobs"      element={<Jobs />} />
+          <Route path="findings"  element={<Findings />} />
+          <Route path="evidence"  element={<EvidenceViewer />} />
+          <Route path="vex"       element={<VexView />} />
+          <Route path="status"    element={<SystemStatus />} />
+
+          {/* Settings sub-routes */}
+          <Route path="settings" element={<SettingsLayout />}>
+            <Route index element={<Navigate to="account" replace />} />
+            <Route path="account" element={<AccountSettings />} />
+            <Route path="etw"     element={<EtwAccessSettings />} />
+            <Route path="api"     element={<ApiStatus />} />
+          </Route>
+
+          {/* Catch-all inside app */}
+          <Route path="*" element={<Navigate to="dashboard" replace />} />
+        </Route>
+
+        {/* Global catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-
-
-      {/* Login Modal */}
-      <div
-        className={`modal-overlay ${showLoginModal ? 'active' : ''}`}
-        onClick={(e) => {
-          if (e.target.className.includes('modal-overlay')) closeLogin();
-        }}
-      >
-        <div className="modal-content">
-          <button className="modal-close" onClick={closeLogin}>
-            <X size={24} />
-          </button>
-          <div className="modal-header">
-            <h2>Enterprise Login</h2>
-            <p>Secure Access for Authorized Personnel</p>
-          </div>
-          <form onSubmit={handleLogin}>
-            <div className="input-group">
-              <label>Work Email</label>
-              <input type="email" placeholder="name@organization.com" required />
-            </div>
-            <div className="input-group">
-              <label>Password</label>
-              <input type="password" placeholder="••••••••" required />
-            </div>
-            <div
-              style={{
-                marginBottom: '20px',
-                fontSize: '0.85rem',
-                color: '#666',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
-              <Shield size={14} /> SSO Enabled for your domain
-            </div>
-            <button
-              type="submit"
-              className="btn btn-primary full-width"
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              Authenticate & Sign In
-            </button>
-          </form>
-          <div className="modal-footer" style={{ textAlign: 'center' }}>
-            <a href="#" style={{ fontSize: '0.8rem', color: '#555' }}>
-              Forgot Password?
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
-
-export default App;

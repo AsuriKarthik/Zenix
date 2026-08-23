@@ -1,0 +1,26 @@
+# ── Core framework ────────────────────────────────────────────────────────────
+Flask>=3.1.3
+Flask-CORS>=6.0.0
+Flask-SQLAlchemy==3.1.1
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+python-dotenv>=1.2.2
+
+# ── HTTP client ───────────────────────────────────────────────────────────────
+requests>=2.33.0
+
+# ── Auth (step 9 — installed now so db.py can define the password_hash field) ──
+bcrypt==4.1.3
+Flask-Login==0.6.3
+
+# ── Runtime evidence ─────────────────────────────────────────────────────────
+psutil==7.2.2
+
+# ── VEX document validation (step 8) ─────────────────────────────────────────
+jsonschema==4.22.0
+cryptography>=42.0.0
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest>=9.0.3
+pytest-mock==3.14.0
+responses==0.25.3

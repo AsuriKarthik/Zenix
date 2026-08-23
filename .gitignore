@@ -1,1 +1,29 @@
+# Secret environment files
 .env
+*.env
+!.env.example
+
+# Python virtual environment & build artifacts
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Frontend / Node build artifacts
+node_modules/
+dist/
+.vite/
+
+# SQLite databases & uploads
+*.db
+db.sqlite3
+zenix.db
+etw_events.db
+uploads/
+
+# IDE & system files
+.vscode/
+.DS_Store
