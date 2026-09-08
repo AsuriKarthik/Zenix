@@ -164,60 +164,7 @@ Built using:
 
 ---
 
-# 📂 Project Structure
 
-``text
-zenix/
-│
-├── backend/                          # Python / Flask backend
-│   ├── agents/                       # Dual-mode Windows ETW & process memory collectors
-│   │   ├── etw_collector.py          # Native pywintrace kernel trace + psutil memory collector
-│   │   ├── reachability_psutil.py    # Win32 & psutil memory map scanner
-│   │   └── reachability_resolver.py  # Correlates host process maps against SBOM components
-│   ├── api/                          # REST API route controllers
-│   │   ├── auth.py                   # Secure auth endpoints (Bcrypt, session, zero OTP leakage)
-│   │   ├── jobs.py                   # SBOM upload, job status, findings list, priority triage
-│   │   ├── telemetry.py              # ETW telemetry management & live event streaming
-│   │   └── vex.py                    # VEX listing, ECDSA verification, PDF downloads
-│   ├── jobs/                         # Asynchronous execution engine
-│   │   ├── pipeline_runner.py        # 6-stage vulnerability & reachability pipeline
-│   │   └── queue.py                  # Multi-threaded asynchronous background job queue
-│   ├── logs/                         # Local security audit logs
-│   │   └── security_audit.log        # Offline security audit log for OTP and dispatch events
-│   ├── pipeline/                     # Core security intelligence pipeline
-│   │   ├── cve_matcher.py            # Live OSV.dev and NIST NVD REST API lookups
-│   │   ├── cvss_calculator.py        # CVSS v3.1 vector string base score calculator
-│   │   ├── enricher.py               # FIRST EPSS, CISA KEV, Shodan & VirusTotal live engine
-│   │   ├── sbom_parser.py            # Universal SBOM parser hardened with defusedxml
-│   │   ├── scorer.py                 # Deterministic multi-vector risk scoring math
-│   │   ├── vex_generator.py          # CycloneDX VEX generator with ECDSA P-256 digital signing
-│   │   └── vex_pdf_generator.py      # Professional ReportLab forensic PDF generator
-│   ├── tests/                        # 13 automated test suites (156 tests passing)
-│   │   └── verify_live_subsystems.py # Live subsystems check (Hardware, Shodan, VT, Mailer)
-│   ├── utils/                        # Utilities
-│   │   └── mailer.py                 # Secure SMTP email delivery & audit logging utility
-│   ├── app.py                        # Main Flask server application entry point
-│   ├── config.py                     # App configuration & .env credential bindings
-│   ├── db.py                         # SQLAlchemy database models with automated SQLite migrations
-│   ├── requirements.txt              # Backend dependencies
-│   └── zenix.db                      # Local SQLite relational database
-│
-├── frontend/                         # React 19 + Vite UI
-│   ├── src/
-│   │   ├── api/                      # Axios REST endpoints (auth, jobs, telemetry, vex)
-│   │   ├── components/               # Layout (AppShell, Sidebar), UI cards, badges, pills
-│   │   ├── hooks/                    # Authentication and session context hooks
-│   │   ├── pages/                    # Dashboard, Jobs, Findings, EvidenceViewer, VexCompliance, Status
-│   │   ├── utils/                    # Severity helpers, formatters, and calculations
-│   │   ├── App.jsx                   # Main React routing component
-│   │   ├── index.css                 # Global design system & theme variables
-│   │   └── main.jsx                  # React application root
-│   ├── package.json                  # Frontend dependencies (React 19, Vite, Lucide)
-│   └── vite.config.js                # Vite development and bundle configuration
-│
-├── ZENIX_PROJECT_REALITY_AUDIT.txt   # Complete reality audit & verification documentation
-└── README.md                         # Technical documentation & project guide
----
 
 # ⚙️ Installation
 
