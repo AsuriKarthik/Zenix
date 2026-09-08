@@ -36,8 +36,8 @@ import Dashboard     from './pages/Dashboard';
 import Jobs          from './pages/Jobs';
 import Findings      from './pages/Findings';
 import EvidenceViewer from './pages/EvidenceViewer';
-import VexView from './components/dashboard/vex/VexView';
-import SystemStatus  from './pages/SystemStatus';
+import VexCompliance  from './pages/VexCompliance';
+import SystemStatus   from './pages/SystemStatus';
 
 
 // Settings
@@ -87,7 +87,7 @@ export default function App() {
           <Route path="jobs"      element={<Jobs />} />
           <Route path="findings"  element={<Findings />} />
           <Route path="evidence"  element={<EvidenceViewer />} />
-          <Route path="vex"       element={<VexView />} />
+          <Route path="vex"       element={<VexCompliance />} />
           <Route path="status"    element={<SystemStatus />} />
 
           {/* Settings sub-routes */}

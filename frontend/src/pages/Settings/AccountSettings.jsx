@@ -4,15 +4,20 @@
  * Full-width layout matching native Zenix System Status design:
  *   - Left Box: User Account Details (Interactive inline editing for Display Handle + instant DB update)
  *   - Right Box: Security Telemetry (Fills empty side space with matching box design & session integrity)
+ *   - Lower Section: Two-Factor Authentication (RFC 6238 TOTP / Google Authenticator) setup, backup codes & disablement
  */
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import useAuthStore from '../../store/authStore';
 import { formatTimestamp } from '../../utils/formatters';
-import { User, CheckCircle2, Edit3, Save, X, AlertTriangle, ShieldCheck } from 'lucide-react';
+import {
+  User, CheckCircle2, Edit3, Save, X, AlertTriangle, ShieldCheck,
+  Smartphone, QrCode, Copy, Check, Download, Shield, KeyRound, Lock, ShieldAlert
+} from 'lucide-react';
 import PulseIndicator from '../../components/ui/PulseIndicator';
-import { updateProfile } from '../../api/auth';
+import { updateProfile, setup2FA, verify2FASetup, disable2FA } from '../../api/auth';
 
 export default function AccountSettings() {
   const { user } = useAuth();
@@ -23,6 +28,29 @@ export default function AccountSettings() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
+
+  // ── Two-Factor Authentication State ───────────────────────────────
+  const isTotpActive = Boolean(user?.is_totp_enabled);
+
+  // Setup Modal State
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [setupStep, setSetupStep] = useState(1); // 1 = QR & Code, 2 = Backup Codes
+  const [setupLoading, setSetupLoading] = useState(false);
+  const [setupError, setSetupError] = useState(null);
+  const [totpSecret, setTotpSecret] = useState('');
+  const [qrCodeSvg, setQrCodeSvg] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [backupCodes, setBackupCodes] = useState([]);
+  const [copiedSecret, setCopiedSecret] = useState(false);
+  const [copiedCodes, setCopiedCodes] = useState(false);
+
+  // Disable Modal State
+  const [showDisableModal, setShowDisableModal] = useState(false);
+  const [disablePassword, setDisablePassword] = useState('');
+  const [disableCode, setDisableCode] = useState('');
+  const [disableLoading, setDisableLoading] = useState(false);
+  const [disableError, setDisableError] = useState(null);
+  const [disableSuccess, setDisableSuccess] = useState(null);
 
   // Sync state ONLY when NOT currently editing so background polling NEVER interrupts typing
   useEffect(() => {
@@ -69,6 +97,134 @@ export default function AccountSettings() {
     setDisplayName(user?.display_name || (user?.email ? user.email.split('@')[0] : ''));
     setError(null);
     setIsEditing(false);
+  };
+
+  // ── 2FA Setup Flow Handlers ───────────────────────────────────────
+  const handleOpenSetup = async () => {
+    setShowSetupModal(true);
+    setSetupStep(1);
+    setSetupLoading(true);
+    setSetupError(null);
+    setVerificationCode('');
+    setBackupCodes([]);
+    setCopiedSecret(false);
+    setCopiedCodes(false);
+
+    try {
+      const data = await setup2FA();
+      setTotpSecret(data.secret || '');
+      setQrCodeSvg(data.qr_code_svg || '');
+    } catch (err) {
+      setSetupError(err.response?.data?.error || 'Failed to initialize 2FA setup. Please try again.');
+    } finally {
+      setSetupLoading(false);
+    }
+  };
+
+  const handleVerifySetup = async (e) => {
+    e.preventDefault();
+    const cleanCode = verificationCode.trim().replace(/\s+/g, '').replace(/-/g, '');
+    if (!cleanCode) {
+      setSetupError('Please enter the 6-digit code from your authenticator app.');
+      return;
+    }
+
+    setSetupLoading(true);
+    setSetupError(null);
+
+    try {
+      const data = await verify2FASetup(cleanCode);
+      if (data.backup_codes) {
+        setBackupCodes(data.backup_codes);
+        setSetupStep(2);
+      }
+      if (user) {
+        setUser({ ...user, is_totp_enabled: true });
+      }
+    } catch (err) {
+      setSetupError(err.response?.data?.error || 'Invalid verification code. Ensure your device time is synchronized.');
+    } finally {
+      setSetupLoading(false);
+    }
+  };
+
+  const handleCopySecret = () => {
+    if (!totpSecret) return;
+    navigator.clipboard.writeText(totpSecret);
+    setCopiedSecret(true);
+    setTimeout(() => setCopiedSecret(false), 2500);
+  };
+
+  const handleCopyBackupCodes = () => {
+    if (!backupCodes.length) return;
+    navigator.clipboard.writeText(backupCodes.join('\n'));
+    setCopiedCodes(true);
+    setTimeout(() => setCopiedCodes(false), 2500);
+  };
+
+  const handleDownloadBackupCodes = () => {
+    if (!backupCodes.length) return;
+    const text = `ZENIX SECURITY PLATFORM — EMERGENCY 2FA RECOVERY CODES
+Generated: ${new Date().toISOString()}
+Account: ${user?.email || 'analyst'}
+
+CRITICAL SECURITY NOTICE:
+Each code below can be used EXACTLY ONCE if you lose access to your primary authenticator device.
+Store this file in an encrypted vault or offline password manager.
+
+${backupCodes.map((c, i) => `[${i + 1}] ${c}`).join('\n')}
+`;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `zenix-recovery-codes-${(user?.email || 'analyst').split('@')[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFinishSetup = () => {
+    setShowSetupModal(false);
+    setVerificationCode('');
+    setBackupCodes([]);
+  };
+
+  // ── 2FA Disablement Handlers ─────────────────────────────────────
+  const handleOpenDisable = () => {
+    setShowDisableModal(true);
+    setDisablePassword('');
+    setDisableCode('');
+    setDisableError(null);
+    setDisableSuccess(null);
+  };
+
+  const handleConfirmDisable = async (e) => {
+    e.preventDefault();
+    if (!disablePassword) {
+      setDisableError('Current account password is required to disable 2FA.');
+      return;
+    }
+
+    setDisableLoading(true);
+    setDisableError(null);
+
+    try {
+      await disable2FA(disablePassword, disableCode.trim());
+      setDisableSuccess('Two-Factor Authentication disabled successfully.');
+      if (user) {
+        setUser({ ...user, is_totp_enabled: false });
+      }
+      setTimeout(() => {
+        setShowDisableModal(false);
+        setDisablePassword('');
+        setDisableCode('');
+        setDisableSuccess(null);
+      }, 1500);
+    } catch (err) {
+      setDisableError(err.response?.data?.error || 'Failed to disable 2FA. Check your password and verification code.');
+    } finally {
+      setDisableLoading(false);
+    }
   };
 
   const accountEmail = user?.email || '—';
@@ -318,7 +474,7 @@ export default function AccountSettings() {
                 AUTHENTICATION TYPE
               </div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
-                Bcrypt Salted & Hashed
+                Bcrypt Salted + TOTP RFC 6238
               </div>
             </div>
 
@@ -399,6 +555,583 @@ export default function AccountSettings() {
         </div>
 
       </div>
+
+      {/* ── LOWER SECTION: Two-Factor Authentication (RFC 6238 TOTP) Card ──────── */}
+      <div className="card mb-6" style={{ position: 'relative', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 'var(--space-4)', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <div style={{
+              width: 40, height: 40,
+              background: isTotpActive ? 'rgba(34, 197, 94, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+              border: `1px solid ${isTotpActive ? 'rgba(34, 197, 94, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+              borderRadius: 'var(--radius-md)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Smartphone size={20} style={{ color: isTotpActive ? 'var(--color-verified)' : 'var(--color-warning)' }} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Two-Factor Authentication (2FA)
+                </span>
+                <span style={{
+                  fontSize: 10,
+                  fontFamily: 'var(--font-mono)',
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  background: isTotpActive ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                  color: isTotpActive ? 'var(--color-verified)' : 'var(--color-warning)',
+                  border: `1px solid ${isTotpActive ? 'rgba(34, 197, 94, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                  fontWeight: 600,
+                  letterSpacing: 0.5,
+                }}>
+                  {isTotpActive ? 'ACTIVE' : 'DISABLED'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <PulseIndicator variant={isTotpActive ? 'verified' : 'warning'} />
+            <span style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 1,
+              color: isTotpActive ? 'var(--color-verified)' : 'var(--color-warning)',
+            }}>
+              {isTotpActive ? 'ENFORCED' : 'INACTIVE'}
+            </span>
+          </div>
+        </div>
+
+        {/* Content Box */}
+        {isTotpActive ? (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: 'var(--space-3) var(--space-4)',
+            background: 'var(--bg-surface-2)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid rgba(34, 197, 94, 0.2)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <ShieldCheck size={18} style={{ color: 'var(--color-verified)' }} />
+              <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>
+                Google Authenticator is active for this account.
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleOpenDisable}
+              className="btn btn-ghost"
+              style={{
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#F87171',
+                background: 'rgba(239, 68, 68, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 12,
+                padding: '6px 14px',
+              }}
+            >
+              <Lock size={13} /> Disable 2FA
+            </button>
+          </div>
+        ) : (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: 'var(--space-3) var(--space-4)',
+            background: 'var(--bg-surface-2)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-subtle)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Smartphone size={18} style={{ color: 'var(--text-muted)' }} />
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                Protect your account with Google Authenticator.
+              </span>
+            </div>
+
+            <button
+              type="button"
+              id="enable-2fa-btn"
+              onClick={handleOpenSetup}
+              className="btn btn-primary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+                padding: '8px 16px',
+                fontWeight: 600,
+              }}
+            >
+              <Smartphone size={14} /> Enable 2FA
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── 2FA SETUP MODAL ────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showSetupModal && (
+          <div className="modal-backdrop" style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          }}>
+            <motion.div
+              className="card"
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              style={{
+                width: '100%',
+                maxWidth: 520,
+                background: '#14141A',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                borderRadius: 16,
+                padding: 24,
+                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8)',
+              }}
+            >
+              {/* Modal Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 32, height: 32,
+                    borderRadius: 8,
+                    background: 'rgba(56, 189, 248, 0.15)',
+                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    {setupStep === 1 ? <QrCode size={16} color="#38BDF8" /> : <KeyRound size={16} color="#22C55E" />}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#F5F5F5' }}>
+                      {setupStep === 1 ? 'Pair Google Authenticator' : 'Emergency Backup Codes'}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#94A3B8' }}>
+                      {setupStep === 1 ? 'STEP 1 OF 2: DEVICE ENROLLMENT' : 'STEP 2 OF 2: RECOVERY VAULT'}
+                    </div>
+                  </div>
+                </div>
+                {setupStep === 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowSetupModal(false)}
+                    style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: 18 }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* STEP 1: Scan QR Code & Enter 6-digit Verification Code */}
+              {setupStep === 1 && (
+                <div>
+                  <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 16, lineHeight: 1.5 }}>
+                    Open your authenticator app (<strong style={{ color: '#F5F5F5' }}>Google Authenticator</strong>, <strong style={{ color: '#F5F5F5' }}>Authy</strong>, or <strong style={{ color: '#F5F5F5' }}>1Password</strong>) and scan the QR code below.
+                  </div>
+
+                  {setupLoading && !qrCodeSvg ? (
+                    <div style={{ textAlign: 'center', padding: '30px 0', color: '#94A3B8', fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                      GENERATING CRYPTOGRAPHIC PAIRING KEY…
+                    </div>
+                  ) : (
+                    <>
+                      {/* QR Code Container */}
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: '#FFFFFF',
+                        borderRadius: 12,
+                        padding: 16,
+                        maxWidth: 210,
+                        margin: '0 auto 16px auto',
+                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
+                      }}>
+                        {qrCodeSvg && (
+                          <img
+                            src={qrCodeSvg}
+                            alt="Google Authenticator QR Code"
+                            style={{ width: 178, height: 178, display: 'block' }}
+                          />
+                        )}
+                      </div>
+
+                      {/* Manual Secret Key */}
+                      <div style={{
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: 8,
+                        padding: '10px 12px',
+                        marginBottom: 18,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                      }}>
+                        <div style={{ overflow: 'hidden' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>
+                            MANUAL CONFIGURATION KEY
+                          </div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: '#DAFC6F', fontWeight: 700, letterSpacing: 1.5, wordBreak: 'break-all', marginTop: 2 }}>
+                            {totpSecret || '—'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCopySecret}
+                          className="btn btn-ghost btn-sm"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: 11,
+                            padding: '4px 8px',
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            color: copiedSecret ? '#4ADE80' : '#F5F5F5',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {copiedSecret ? <Check size={12} /> : <Copy size={12} />}
+                          {copiedSecret ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+
+                      {/* Verification Code Input Form */}
+                      <form onSubmit={handleVerifySetup}>
+                        <div className="input-group mb-4">
+                          <label className="input-label" style={{ color: '#F5F5F5', fontSize: 12 }}>
+                            Enter 6-Digit Code from Authenticator
+                          </label>
+                          <input
+                            id="totp-setup-code-input"
+                            className="input input-mono"
+                            type="text"
+                            placeholder="000000"
+                            value={verificationCode}
+                            onChange={(e) => setVerificationCode(e.target.value)}
+                            maxLength={8}
+                            required
+                            autoFocus
+                            autoComplete="one-time-code"
+                            disabled={setupLoading}
+                            style={{
+                              textAlign: 'center',
+                              fontSize: 20,
+                              letterSpacing: 6,
+                              fontWeight: 700,
+                              color: '#DAFC6F',
+                              background: 'rgba(0, 0, 0, 0.5)',
+                              border: '1px solid rgba(218, 252, 111, 0.4)',
+                              borderRadius: 8,
+                              padding: '10px 14px',
+                            }}
+                          />
+                        </div>
+
+                        {setupError && (
+                          <div className="alert alert-error mb-4" style={{ fontSize: 12 }}>
+                            <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                            <div>{setupError}</div>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={() => setShowSetupModal(false)}
+                            style={{ flex: 1 }}
+                            disabled={setupLoading}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            id="verify-2fa-setup-btn"
+                            className="btn btn-primary"
+                            style={{ flex: 2 }}
+                            disabled={setupLoading || !verificationCode.trim()}
+                          >
+                            {setupLoading ? 'Verifying Code…' : 'Activate 2FA'}
+                          </button>
+                        </div>
+                      </form>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* STEP 2: Emergency Single-Use Backup Codes Display */}
+              {setupStep === 2 && (
+                <div>
+                  <div style={{
+                    padding: 12,
+                    background: 'rgba(34, 197, 94, 0.12)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    borderRadius: 8,
+                    marginBottom: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}>
+                    <CheckCircle2 size={20} color="#4ADE80" style={{ flexShrink: 0 }} />
+                    <div style={{ fontSize: 12, color: '#4ADE80', fontWeight: 600 }}>
+                      Two-Factor Authentication is now actively enabled!
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 14, lineHeight: 1.5 }}>
+                    These <strong style={{ color: '#F5F5F5' }}>8 emergency backup codes</strong> can each be redeemed once
+                    to sign in if you ever lose your phone or authenticator app. Download or copy them now.
+                  </div>
+
+                  {/* Backup Codes Grid */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 8,
+                    background: 'rgba(0, 0, 0, 0.5)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: 8,
+                    padding: 14,
+                    marginBottom: 16,
+                  }}>
+                    {backupCodes.map((code, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: '#DAFC6F',
+                          padding: '6px 8px',
+                          background: 'rgba(218, 252, 111, 0.05)',
+                          borderRadius: 4,
+                          border: '1px solid rgba(218, 252, 111, 0.15)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{idx + 1}.</span>
+                        <span>{code}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                    <button
+                      type="button"
+                      onClick={handleCopyBackupCodes}
+                      className="btn btn-ghost"
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        fontSize: 12,
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        color: copiedCodes ? '#4ADE80' : '#F5F5F5',
+                      }}
+                    >
+                      {copiedCodes ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedCodes ? 'All Codes Copied!' : 'Copy All Codes'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadBackupCodes}
+                      className="btn btn-ghost"
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        fontSize: 12,
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        color: '#F5F5F5',
+                      }}
+                    >
+                      <Download size={14} /> Download .txt
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleFinishSetup}
+                    className="btn btn-primary"
+                    style={{ width: '100%', padding: '12px 16px', fontWeight: 600, fontSize: 13 }}
+                  >
+                    I Have Safely Saved My Backup Codes
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── 2FA DISABLE CONFIRMATION MODAL ─────────────────────────────── */}
+      <AnimatePresence>
+        {showDisableModal && (
+          <div className="modal-backdrop" style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          }}>
+            <motion.div
+              className="card"
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              style={{
+                width: '100%',
+                maxWidth: 440,
+                background: '#14141A',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: 16,
+                padding: 24,
+                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 32, height: 32,
+                    borderRadius: 8,
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <ShieldAlert size={16} color="#EF4444" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#F5F5F5' }}>Disable 2FA</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#EF4444' }}>
+                      SECURITY PRIVILEGE DOWNGRADE
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDisableModal(false)}
+                  style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: 18 }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {disableSuccess ? (
+                <div style={{
+                  padding: 14,
+                  background: 'rgba(34, 197, 94, 0.12)',
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                  borderRadius: 8,
+                  textAlign: 'center',
+                  color: '#4ADE80',
+                  fontSize: 13,
+                  fontWeight: 600
+                }}>
+                  {disableSuccess}
+                </div>
+              ) : (
+                <form onSubmit={handleConfirmDisable}>
+                  <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 16, lineHeight: 1.5 }}>
+                    Disabling Two-Factor Authentication removes secondary identity verification.
+                    Please confirm your current account credentials to proceed.
+                  </div>
+
+                  <div className="input-group mb-3">
+                    <label className="input-label" style={{ color: '#F5F5F5', fontSize: 12 }}>
+                      Account Password
+                    </label>
+                    <input
+                      className="input"
+                      type="password"
+                      placeholder="••••••••"
+                      value={disablePassword}
+                      onChange={(e) => setDisablePassword(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="input-group mb-4">
+                    <label className="input-label" style={{ color: '#F5F5F5', fontSize: 12 }}>
+                      Google Authenticator Code or Backup Code
+                    </label>
+                    <input
+                      className="input input-mono"
+                      type="text"
+                      placeholder="000000 or XXXX-XXXX"
+                      value={disableCode}
+                      onChange={(e) => setDisableCode(e.target.value)}
+                      required
+                      autoComplete="one-time-code"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck="false"
+                      data-lpignore="true"
+                    />
+                  </div>
+
+                  {disableError && (
+                    <div className="alert alert-error mb-4" style={{ fontSize: 12 }}>
+                      <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                      <div>{disableError}</div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={() => setShowDisableModal(false)}
+                      style={{ flex: 1 }}
+                      disabled={disableLoading}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-danger"
+                      style={{
+                        flex: 1.5,
+                        background: '#EF4444',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontWeight: 600,
+                      }}
+                      disabled={disableLoading || !disablePassword}
+                    >
+                      {disableLoading ? 'Disabling…' : 'Confirm Disablement'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+

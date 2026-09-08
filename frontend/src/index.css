@@ -107,6 +107,45 @@ html {
   height: 100%;
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
+  color-scheme: dark;
+}
+
+/* Form Select Elements & Dropdown Menus */
+select,
+.select {
+  background-color: #0E0E12;
+  color: #F5F5F7;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  outline: none;
+  cursor: pointer;
+  color-scheme: dark;
+}
+
+select:focus,
+.select:focus {
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.2);
+}
+
+select option,
+.select option {
+  background-color: #0E0E12;
+  color: #F5F5F7;
+  padding: 8px 12px;
+}
+
+select option:hover,
+select option:focus,
+select option:checked,
+.select option:hover,
+.select option:focus,
+.select option:checked {
+  background-color: #1C1C24;
+  color: #38BDF8;
 }
 
 body {

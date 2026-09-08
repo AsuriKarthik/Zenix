@@ -9,7 +9,7 @@
  */
 
 import { useCallback } from 'react';
-import { getMe, login as apiLogin, logout as apiLogout } from '../api/auth';
+import { getMe, login as apiLogin, logout as apiLogout, login2FA } from '../api/auth';
 import useAuthStore from '../store/authStore';
 
 export function useAuth() {
@@ -45,12 +45,30 @@ export function useAuth() {
    */
   const login = useCallback(async (email, password) => {
     const data = await apiLogin(email, password);
+    if (data?.mfa_required) {
+      return data;
+    }
     if (data?.user) {
       localStorage.setItem('zenix_session_authenticated', 'true');
       setUser(data.user);
       return data;
     }
     throw new Error('Invalid email or password.');
+  }, [setUser]);
+
+  /**
+   * Complete 2FA Login with pre_auth_token and TOTP / backup code.
+   * @param {string} preAuthToken
+   * @param {string} code
+   */
+  const complete2FALogin = useCallback(async (preAuthToken, code) => {
+    const data = await login2FA(preAuthToken, code);
+    if (data?.user) {
+      localStorage.setItem('zenix_session_authenticated', 'true');
+      setUser(data.user);
+      return data;
+    }
+    throw new Error('Invalid authentication code.');
   }, [setUser]);
 
   /**
@@ -63,7 +81,6 @@ export function useAuth() {
       // Ignore network errors on logout
     }
     localStorage.removeItem('zenix_session_authenticated');
-    localStorage.removeItem('zenix_etw_permission_granted');
     clearAuth();
   }, [clearAuth]);
 
@@ -73,6 +90,7 @@ export function useAuth() {
     isLoading,
     checkSession,
     login,
+    complete2FALogin,
     logout,
   };
 }

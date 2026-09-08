@@ -10,12 +10,13 @@ import client from './client';
  * Returns VEX documents for the authenticated user's jobs.
  * @param {{ job_id?: string, cve_id?: string, status?: string }} filters
  */
-export async function getVexDocuments({ job_id, cve_id, status, source_type } = {}) {
+export async function getVexDocuments({ job_id, cve_id, status, source_type, date } = {}) {
   const params = {};
   if (job_id) params.job_id = job_id;
   if (cve_id) params.cve_id = cve_id;
   if (status) params.status = status;
   if (source_type && source_type !== 'ALL') params.source_type = source_type;
+  if (date && date !== 'ALL' && date !== 'all') params.date = date;
   const res = await client.get('/vex', { params });
   return res.data;
 }

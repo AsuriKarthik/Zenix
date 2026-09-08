@@ -12,6 +12,8 @@ requests>=2.33.0
 # ── Auth (step 9 — installed now so db.py can define the password_hash field) ──
 bcrypt==4.1.3
 Flask-Login==0.6.3
+pyotp>=2.9.0
+qrcode>=7.4.2
 
 # ── Runtime evidence ─────────────────────────────────────────────────────────
 psutil==7.2.2

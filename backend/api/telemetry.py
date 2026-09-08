@@ -102,14 +102,20 @@ def verify_etw_passphrase(passphrase: str, user: Any = None) -> bool:
     if etw_hash and check_password(pwd_str, etw_hash):
         return True
 
-    # 2. Account password fallback (e.g. if user uses main account login password for ETW elevation)
+    # 2. Account password fallback
     main_hash = getattr(user_obj, 'password_hash', None)
     if main_hash and check_password(pwd_str, main_hash):
         return True
 
-    # 3. Default fallback for standard setup passkeys
-    if pwd_str in ("etw123456", "admin", "password123"):
-        return True
+    # 3. Google Authenticator code elevation (independent of 2FA login setting)
+    totp_sec = getattr(user_obj, 'totp_secret', None)
+    if totp_sec:
+        clean_code = pwd_str.replace(" ", "").replace("-", "")
+        if len(clean_code) == 6 and clean_code.isdigit():
+            import pyotp
+            totp = pyotp.TOTP(totp_sec)
+            if totp.verify(clean_code, valid_window=1):
+                return True
 
     return False
 
@@ -226,7 +232,7 @@ _FEED_CACHE_TTL = 60.0  # seconds cache TTL
 
 def _ping_feed(url: str, name: str, default_protocol: str = 'REST/JSON') -> dict[str, Any]:
     """
-    Perform a live HTTP ping check against an external feed endpoint with a strict 1.5s timeout.
+    Perform a live HTTP ping check against an external feed endpoint with a 3.5s timeout.
     """
     t0 = time.perf_counter()
     status = "OFFLINE"
@@ -235,7 +241,7 @@ def _ping_feed(url: str, name: str, default_protocol: str = 'REST/JSON') -> dict
 
     try:
         headers = {"User-Agent": "Zenix-Security-Platform/1.0"}
-        resp = requests.get(url, headers=headers, timeout=1.5)
+        resp = requests.get(url, headers=headers, timeout=3.5)
         latency_ms = round((time.perf_counter() - t0) * 1000, 1)
 
         if resp.status_code in (200, 204):
@@ -249,7 +255,7 @@ def _ping_feed(url: str, name: str, default_protocol: str = 'REST/JSON') -> dict
             freshness = f"HTTP {resp.status_code} ({latency_ms}ms)"
     except requests.exceptions.Timeout:
         status = "OFFLINE"
-        freshness = "Request timed out (>1500ms)"
+        freshness = "Request timed out (>3500ms)"
     except Exception as exc:
         status = "OFFLINE"
         freshness = f"Unreachable ({str(exc)[:40]})"
@@ -275,7 +281,7 @@ def _ping_all_feeds_cached() -> dict[str, dict[str, Any]]:
     if cache_age > _FEED_CACHE_TTL:
         def _bg_refresh():
             feeds_config = [
-                ("osv", "https://api.osv.dev/v1/query", "OSV", "REST / JSON"),
+                ("osv", "https://api.osv.dev/v1/vulns/OSV-2020-484", "OSV", "REST / JSON"),
                 ("nvd", "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=1", "NIST NVD", "REST API v2.0"),
                 ("epss", "https://api.first.org/data/v1/epss?limit=1", "FIRST EPSS", "CSV / JSON"),
                 ("kev", "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", "CISA KEV", "JSON Feed"),
@@ -676,3 +682,37 @@ def get_telemetry_audit_logs():
         })
 
     return jsonify(results), 200
+
+
+@telemetry_bp.route('/authenticator-qr', methods=['GET'])
+@login_required
+def get_etw_authenticator_qr():
+    """
+    Get or provision Google Authenticator pairing QR code for ETW elevation recovery.
+    Independent of account login 2FA settings.
+    """
+    import pyotp
+    from db import User
+    from api.auth import generate_qr_svg_data_uri
+
+    user = db.session.get(User, int(current_user.id))
+    if not user:
+        return jsonify({"error": "User not found."}), 404
+
+    if not user.totp_secret:
+        user.totp_secret = pyotp.random_base32()
+        db.session.commit()
+
+    issuer_name = "Zenix Security"
+    totp_uri = pyotp.totp.TOTP(user.totp_secret).provisioning_uri(
+        name=user.email,
+        issuer_name=issuer_name
+    )
+    qr_svg_uri = generate_qr_svg_data_uri(totp_uri)
+
+    return jsonify({
+        "secret": user.totp_secret,
+        "otpauth_url": totp_uri,
+        "qr_code_svg": qr_svg_uri,
+        "email": user.email,
+    }), 200

@@ -60,15 +60,16 @@ def get_vex_documents() -> Response:
     cve_id = request.args.get('cve_id')
     status = request.args.get('status')
     source_type_param = request.args.get('source_type')
+    date_param = request.args.get('date')
 
     query = VexDocument.query.join(Job)
 
     user_role = getattr(current_user, 'role', 'analyst')
     user_id = getattr(current_user, 'id', None)
 
-    # Strict Data Isolation (Requirement 7)
+    # Strict Data Isolation (Requirement 7) — users see own jobs + system runtime telemetry jobs
     if user_role != 'admin':
-        query = query.filter(Job.user_id == user_id)
+        query = query.filter(db.or_(Job.user_id == user_id, Job.job_type == 'runtime_telemetry'))
 
     if job_id:
         query = query.filter(VexDocument.job_id == job_id)
@@ -76,6 +77,24 @@ def get_vex_documents() -> Response:
         query = query.filter(VexDocument.cve_id == cve_id)
     if status:
         query = query.filter(VexDocument.status == status)
+
+    if date_param:
+        from datetime import timedelta
+        if date_param in ('today', 'TODAY'):
+            d_str = _utcnow().strftime('%Y-%m-%d')
+        elif date_param in ('yesterday', 'YESTERDAY'):
+            d_str = (_utcnow() - timedelta(days=1)).strftime('%Y-%m-%d')
+        else:
+            d_str = date_param
+        if d_str and d_str not in ('all', 'ALL', 'ALL DATES'):
+            clean_d = d_str.replace('-', '')
+            query = query.filter(
+                db.or_(
+                    db.func.strftime('%Y-%m-%d', VexDocument.generated_at) == d_str,
+                    VexDocument.job_id == f"job-rt-{clean_d}",
+                    VexDocument.evidence_summary.like(f"%Date: {d_str}%")
+                )
+            )
 
     docs = query.order_by(db.desc(VexDocument.generated_at)).all()
     log.info(f"get_vex_documents called by user_id={user_id} role={user_role}. Docs found: {len(docs)}")
@@ -374,11 +393,14 @@ def generate_runtime_compliance_report() -> ResponseReturnValue:
 
     try:
         from pipeline.vex_generator import generate_vex_documents_for_runtime
-        docs = generate_vex_documents_for_runtime(date_str=date_param)
+        user_id = getattr(current_user, 'id', None)
+        docs = generate_vex_documents_for_runtime(date_str=date_param, user_id=user_id)
+        job_id = docs[0].job_id if docs else f"job-rt-{date_param.replace('-', '')}"
         return jsonify({
             "message": f"Live Telemetry Compliance Report successfully generated for date '{date_param}'.",
             "generated_count": len(docs),
             "report_date": date_param,
+            "job_id": job_id,
             "source_type": "live_telemetry"
         }), 201
     except Exception as exc:

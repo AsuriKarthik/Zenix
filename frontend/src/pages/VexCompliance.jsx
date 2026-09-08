@@ -1,15 +1,39 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Key, RefreshCw, AlertOctagon, Filter, Download, AlertTriangle, ShieldCheck, Activity, FileText } from 'lucide-react';
-import { getVexDocuments, downloadVexDocument } from '../../../api/vex';
-import { formatTimestamp, formatJobId } from '../../../utils/formatters';
+import { useSearchParams } from 'react-router-dom';
+import { Key, RefreshCw, AlertOctagon, Filter, Download, AlertTriangle, ShieldCheck, Activity, FileText, Calendar } from 'lucide-react';
+import { getVexDocuments, downloadVexDocument } from '../api/vex';
+import { getTelemetrySessions } from '../api/telemetry';
+import { formatTimestamp, formatJobId } from '../utils/formatters';
 
 const ComplianceView = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const urlDate = searchParams.get('date');
+    const urlSource = searchParams.get('source');
+
     const [docs, setDocs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState('ALL');
-    const [jobFilter, setJobFilter] = useState('All Jobs');
-    const [sourceFilter, setSourceFilter] = useState('ALL'); // 'ALL' | 'uploaded' | 'live_telemetry'
+    const [sourceFilter, setSourceFilter] = useState(urlSource || 'ALL'); // 'ALL' | 'uploaded' | 'live_telemetry'
+    const [dateFilter, setDateFilter] = useState(urlDate || 'ALL'); // 'ALL' | 'today' | 'yesterday' | 'YYYY-MM-DD'
+    const [availableDates, setAvailableDates] = useState([]);
     const [error, setError] = useState(null);
+
+    // Sync from URL query parameters if they change
+    useEffect(() => {
+        if (urlDate) setDateFilter(urlDate);
+        if (urlSource) setSourceFilter(urlSource);
+    }, [urlDate, urlSource]);
+
+    // Fetch telemetry dates for the Date filter dropdown
+    useEffect(() => {
+        getTelemetrySessions()
+            .then(res => {
+                if (res?.dates && Array.isArray(res.dates)) {
+                    setAvailableDates(res.dates);
+                }
+            })
+            .catch(() => {});
+    }, []);
 
     const fetchDocs = useCallback(async () => {
         setLoading(true);
@@ -18,6 +42,7 @@ const ComplianceView = () => {
             const data = await getVexDocuments({
                 status: statusFilter === 'ALL' ? undefined : statusFilter.toLowerCase().replace(/ /g, '_'),
                 source_type: sourceFilter === 'ALL' ? undefined : sourceFilter,
+                date: dateFilter === 'ALL' ? undefined : dateFilter,
             });
             setDocs(data || []);
         } catch (err) {
@@ -26,23 +51,42 @@ const ComplianceView = () => {
         } finally {
             setLoading(false);
         }
-    }, [statusFilter, sourceFilter]);
+    }, [statusFilter, sourceFilter, dateFilter]);
 
     useEffect(() => {
         fetchDocs();
     }, [fetchDocs]);
 
-    // Unique job IDs for JOB dropdown
-    const uniqueJobs = Array.from(new Set(docs.map(d => d.job_id).filter(Boolean)));
+    // Combined unique dates from telemetry history + retrieved VEX records
+    const allDates = Array.from(new Set([
+        ...availableDates,
+        ...docs.map(d => {
+            if (d.evidence_summary) {
+                const match = d.evidence_summary.match(/Date:\s*(\d{4}-\d{2}-\d{2})/);
+                if (match) return match[1];
+            }
+            if (d.job_id && d.job_id.startsWith('job-rt-')) {
+                const raw = d.job_id.replace('job-rt-', '');
+                if (raw.length === 8) return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+            }
+            return (d.generated_at || '').slice(0, 10);
+        }).filter(Boolean)
+    ])).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().reverse();
 
     // Client-side filtering double check
     const filteredDocs = docs.filter(doc => {
-        if (jobFilter !== 'All Jobs' && formatJobId(doc.job_id) !== jobFilter && doc.job_id !== jobFilter) {
-            return false;
-        }
         if (sourceFilter !== 'ALL') {
             if (sourceFilter === 'live_telemetry' && doc.source_type !== 'live_telemetry') return false;
             if (sourceFilter === 'uploaded' && doc.source_type !== 'uploaded') return false;
+        }
+        if (dateFilter !== 'ALL') {
+            const docGenDate = (doc.generated_at || '').slice(0, 10);
+            const inEvidence = doc.evidence_summary && doc.evidence_summary.includes(dateFilter);
+            const inJob = doc.job_id && doc.job_id.includes(dateFilter.replace(/-/g, ''));
+            const inVexId = doc.vex_id && doc.vex_id.includes(dateFilter.replace(/-/g, ''));
+            if (dateFilter !== 'today' && dateFilter !== 'yesterday') {
+                if (docGenDate !== dateFilter && !inEvidence && !inJob && !inVexId) return false;
+            }
         }
         return true;
     });
@@ -85,9 +129,6 @@ const ComplianceView = () => {
                     </div>
                 </div>
                 <div className="page-header-actions">
-                    <button className="btn btn-ghost btn-sm">
-                        <Key size={13} /> View Public Key
-                    </button>
                     <button className="btn btn-ghost btn-sm" onClick={fetchDocs}>
                         <RefreshCw size={13} /> Refresh
                     </button>
@@ -153,22 +194,6 @@ const ComplianceView = () => {
 
                 <div style={{ width: '1px', height: '24px', background: 'var(--border-subtle)', margin: '0 8px' }}></div>
 
-                {/* Job Filter Dropdown */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase' }}>JOB:</span>
-                    <select
-                        className="select"
-                        value={jobFilter}
-                        onChange={e => setJobFilter(e.target.value)}
-                        style={{ minWidth: 120 }}
-                    >
-                        <option value="All Jobs">All Jobs</option>
-                        {uniqueJobs.map(jid => (
-                            <option key={jid} value={jid}>{formatJobId(jid)}</option>
-                        ))}
-                    </select>
-                </div>
-
                 {/* Source Filter Dropdown (Live Telemetry vs Uploaded Ones) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase' }}>SOURCE:</span>
@@ -176,11 +201,57 @@ const ComplianceView = () => {
                         className="select"
                         value={sourceFilter}
                         onChange={e => setSourceFilter(e.target.value)}
-                        style={{ minWidth: 170, color: sourceFilter === 'live_telemetry' ? '#c084fc' : 'inherit' }}
+                        style={{
+                            minWidth: 170,
+                            fontSize: 11,
+                            fontFamily: 'var(--font-mono)',
+                            color: sourceFilter === 'live_telemetry' ? '#c084fc' : '#F5F5F7',
+                            backgroundColor: '#0E0E12',
+                            colorScheme: 'dark',
+                            borderColor: sourceFilter === 'live_telemetry' ? 'rgba(192, 132, 252, 0.4)' : 'rgba(255, 255, 255, 0.1)',
+                        }}
                     >
-                        <option value="ALL">All Sources</option>
-                        <option value="uploaded">Uploaded ones</option>
-                        <option value="live_telemetry">Live Telemetry (ETW)</option>
+                        <option value="ALL" style={{ backgroundColor: '#0E0E12', color: '#F5F5F7' }}>All Sources</option>
+                        <option value="uploaded" style={{ backgroundColor: '#0E0E12', color: '#F5F5F7' }}>Uploaded ones</option>
+                        <option value="live_telemetry" style={{ backgroundColor: '#0E0E12', color: '#c084fc' }}>Live Telemetry (ETW)</option>
+                    </select>
+                </div>
+
+                {/* Date Filter Dropdown */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <Calendar size={13} style={{ color: dateFilter !== 'ALL' ? '#38BDF8' : 'var(--text-muted)' }} />
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: dateFilter !== 'ALL' ? '#38BDF8' : 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase' }}>DATE:</span>
+                    <select
+                        className="select"
+                        value={dateFilter}
+                        onChange={e => setDateFilter(e.target.value)}
+                        style={{
+                            minWidth: 160,
+                            fontSize: 11,
+                            fontFamily: 'var(--font-mono)',
+                            color: dateFilter !== 'ALL' ? '#38BDF8' : '#F5F5F7',
+                            borderColor: dateFilter !== 'ALL' ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255, 255, 255, 0.1)',
+                            backgroundColor: '#0E0E12',
+                            colorScheme: 'dark',
+                        }}
+                    >
+                        <option value="ALL" style={{ backgroundColor: '#0E0E12', color: '#F5F5F7' }}>All Dates</option>
+                        <option value="today" style={{ backgroundColor: '#0E0E12', color: '#F5F5F7' }}>Today</option>
+                        <option value="yesterday" style={{ backgroundColor: '#0E0E12', color: '#F5F5F7' }}>Yesterday</option>
+                        {allDates
+                            .filter(d => d !== 'today' && d !== 'yesterday')
+                            .map(d => (
+                                <option
+                                    key={d}
+                                    value={d}
+                                    style={{
+                                        backgroundColor: '#0E0E12',
+                                        color: '#F5F5F7',
+                                    }}
+                                >
+                                    {d}
+                                </option>
+                            ))}
                     </select>
                 </div>
 
@@ -226,7 +297,7 @@ const ComplianceView = () => {
 
                                     return (
                                         <tr key={doc.vex_id || idx}>
-                                            <td style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#94a3b8', fontSize: '12px', fontFamily: 'monospace' }}>
+                                             <td style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#94a3b8', fontSize: '12px', fontFamily: 'monospace' }}>
                                                 {doc.vex_id?.slice(0, 16)}…
                                             </td>
                                             <td style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#f8fafc', fontSize: '13px', fontWeight: 600, fontFamily: 'monospace' }}>

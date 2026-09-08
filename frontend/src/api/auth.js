@@ -112,3 +112,45 @@ export async function updateProfile(data) {
   return res.data;
 }
 
+/**
+ * POST /api/auth/2fa/setup
+ * Initiate 2FA pairing; returns secret, otpauth URI, and QR code SVG data URI.
+ */
+export async function setup2FA() {
+  const res = await client.post('/auth/2fa/setup');
+  return res.data;
+}
+
+/**
+ * POST /api/auth/2fa/verify-setup
+ * Confirm 2FA setup with test code; returns backup codes upon success.
+ * @param {string} code
+ */
+export async function verify2FASetup(code) {
+  const res = await client.post('/auth/2fa/verify-setup', { code });
+  return res.data;
+}
+
+/**
+ * POST /api/auth/2fa/disable
+ * Disable 2FA with current account password and code.
+ * @param {string} password
+ * @param {string} code
+ */
+export async function disable2FA(password, code) {
+  const res = await client.post('/auth/2fa/disable', { password, code });
+  return res.data;
+}
+
+/**
+ * POST /api/auth/login/2fa
+ * Complete Stage-2 login with pre_auth_token and 6-digit code or emergency backup code.
+ * @param {string} preAuthToken
+ * @param {string} code
+ */
+export async function login2FA(preAuthToken, code) {
+  const res = await client.post('/auth/login/2fa', { pre_auth_token: preAuthToken, code });
+  if (res.data.csrf_token) setCsrfToken(res.data.csrf_token);
+  return res.data;
+}
+

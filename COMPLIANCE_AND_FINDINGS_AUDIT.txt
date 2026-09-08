@@ -1,0 +1,141 @@
+================================================================================
+ZENIX SYSTEM AUDIT: VEX COMPLIANCE & RUNTIME FINDINGS INTEGRATION VERIFICATION
+================================================================================
+DATE: 2026-09-08
+STATUS OF USER INQUIRY: 100% CONFIRMED AND ACCURATE (THE USER IS 100% RIGHT)
+
+SUMMARY:
+The user reported that:
+1. The Findings page and VEX / Compliance page are NOT connected.
+2. There is NO date option/filter anywhere in the VEX Compliance page.
+3. The dynamic reports are NOT dynamically generated; instead, the system simply
+   mutates the timestamp on old mock VEX records (e.g. from 2026-08-23).
+4. For date '2026-09-05', the Findings table showed 5 findings, but the generation
+   banner reported 23 records, which were simply overwriting existing records.
+
+This audit report verifies every line of code, database query, and UI component
+responsible for these discrepancies, confirming the user's diagnosis with 100%
+technical certainty.
+
+================================================================================
+PART 1: CODE LEVEL ROOT CAUSE ANALYSIS
+================================================================================
+
+1. Disconnection Between Findings and VEX Compliance:
+   - File: `frontend/src/pages/Findings.jsx` (Lines 945-951)
+     When the user clicks the banner link "View in VEX / Compliance Tab ->", the code executes:
+     `onClick={() => navigate('/app/vex')}`
+     Notice: It passes NO URL parameters (no `?date=2026-09-05`, no `?source=live_telemetry`,
+     and no `?jobId=...`).
+   - File: `frontend/src/pages/VexCompliance.jsx` (Lines 9-22, 138-192)
+     The VEX Compliance page provides ONLY three filter controls:
+       a) Status Filter chips: ['ALL', 'NOT AFFECTED', 'AFFECTED', 'UNDER INVESTIGATION']
+       b) Job Filter dropdown: ['All Jobs', ...]
+       c) Source Filter dropdown: ['ALL', 'uploaded', 'live_telemetry']
+     There is NO date selector, date dropdown, or date query parameter handling anywhere
+     in `VexCompliance.jsx`.
+   - File: `backend/api/vex.py` (Lines 51-80)
+     The `GET /api/vex` endpoint parses `job_id`, `cve_id`, `status`, and `source_type`.
+     It DOES NOT accept or filter by a `date` parameter.
+
+2. Why the Report Was "Recycled Mock Data" Overwriting Old Records:
+   - File: `backend/pipeline/vex_generator.py` (Lines 384-498 in `generate_vex_documents_for_runtime`):
+     A. Job ID Hijacking:
+        Line 385: `latest_job = Job.query.order_by(db.desc(Job.submitted_at)).first()`
+        Instead of creating or linking to a dedicated runtime telemetry job for that date,
+        it hijacked the latest uploaded scan job ID (`ZX-F90F0CAE`, which was an SBOM scan!).
+     B. Row Overwriting Bug:
+        Line 417: `cve_id = item.matched_cve_id or item.finding_category or "INVENTORY_DRIFT"`
+        Line 462-465:
+        `existing_doc = VexDocument.query.filter_by(job_id=target_job_id, cve_id=cve_id).first()`
+        Because all drift findings share the generic `cve_id = "INVENTORY_DRIFT"`, the database
+        lookup matched the EXACT SAME pre-existing VEX row (originally seeded from August 23, 2026,
+        VEX ID `VEX-RT-20260823-E9D3E5`).
+     C. Timestamp Mutation:
+        Lines 470-476:
+        ```python
+        if existing_doc:
+            existing_doc.status = vex_status
+            existing_doc.justification = justification
+            existing_doc.evidence_summary = evidence_summary
+            existing_doc.cyclonedx_vex_json = doc_json
+            existing_doc.signature = signature_b64
+            existing_doc.signature_timestamp = now_time
+            existing_doc.generated_at = now_time   # <--- MUTATING OLD RECORD TIMESTAMP
+            created_docs.append(existing_doc)
+        ```
+        Instead of creating new VEX documents scoped to the 2026-09-05 findings, it merely updated
+        the `generated_at` timestamp on the old row to the current second (`Sep 08, 2026, 09:06:23 AM`).
+        This is why the VEX ID retained the old date prefix `VEX-RT-20260823-...` while the GENERATED
+        column displayed `Sep 08, 2026`.
+
+3. Why Findings Showed 5 Findings But The Banner Said 23 Records:
+   - On date `2026-09-05`, the SQLite database table `runtime_inventory` contains 23 records.
+   - 18 of those records have `finding_category = 'DECLARED'` (normal system processes/OS DLLs).
+   - Only 5 records have `finding_category = 'INVENTORY_DRIFT'` (active runtime processes absent
+     from SBOM):
+       1) MoUsoCoreWorker.exe (PID 8940)
+       2) updater.exe (PID 16092)
+       3) MpCmdRun.exe (PID 15312)
+       4) Integrator.exe (PID 24652)
+       5) TrustedInstaller.exe (PID 23208)
+   - In `backend/api/jobs.py` (Lines 669-703), the Findings page filters for actual security findings
+     (`INVENTORY_DRIFT` or `UNKNOWN_RUNTIME_COMPONENT`), correctly displaying 5 items.
+   - However, in `backend/pipeline/vex_generator.py` (Line 409-416), the generator looped through
+     ALL 23 inventory rows, including the 18 normal declared items!
+   - In the loop, all 18 declared items matched the single row `cve_id = 'DECLARED'` and all 5 drift items
+     matched the single row `cve_id = 'INVENTORY_DRIFT'`. The code appended `existing_doc` to `created_docs`
+     23 times, falsely reporting `23 VEX Compliance records created` when in reality only 2 rows were
+     being repeatedly mutated!
+
+================================================================================
+PART 2: LIVE DATABASE VERIFICATION EVIDENCE
+================================================================================
+Executed Query on `zenix.db`:
+  `VexDocument.query.filter(VexDocument.job_id.like('%f90f0cae%')).all()`
+
+Actual Database Rows Found:
+  Row 1: ID 330 | VEX-RT-20260823-E79A02 | CVE: DECLARED        | Status: not_affected | Timestamp: 2026-09-08 09:06:23.881231
+  Row 2: ID 331 | VEX-RT-20260823-E9D3E5 | CVE: INVENTORY_DRIFT | Status: not_affected | Timestamp: 2026-09-08 09:06:23.883225
+
+Total Rows in Database for that job: 2 (NOT 23).
+Both rows have VEX IDs stamped with `20260823` from an older test run, while their `generated_at`
+was overwritten to `2026-09-08 09:06:23` during the user's click.
+
+This provides 100% irrefutable empirical proof that the user's observation is completely true.
+
+================================================================================
+PART 3: ACTION PLAN TO MAKE IT 100% CONNECTED, REAL & DYNAMIC
+================================================================================
+
+1. CONNECT FINDINGS & COMPLIANCE VIA URL ROUTING:
+   - Update `Findings.jsx` banner button to navigate with state/query params:
+     `/app/vex?date=2026-09-05&source=live_telemetry&jobId=ZX-RT-20260905`
+   - Read and apply these search parameters automatically on `VexCompliance.jsx`.
+
+2. ADD DEDICATED DATE OPTION & FILTER IN COMPLIANCE:
+   - Add a "DATE:" filter selector on the VEX Compliance filter bar.
+   - Options include: "All Dates", "Today", "Yesterday", and dynamic historical dates matching
+     telemetry sessions (e.g. `2026-09-05`).
+   - Enable backend endpoint `GET /api/vex` to accept `date` parameter and query by date string.
+
+3. FIX DYNAMIC REPORT GENERATION (REAL DYNAMIC DATA, ZERO RECYCLING):
+   - Scope runtime VEX generation strictly to the findings on that date (matching the 5 findings
+     shown on the Findings page, NOT normal declared DLLs).
+   - Ensure each finding produces its own distinct, cryptographically signed VEX document with:
+     * Unique VEX ID: `VEX-RT-{YYYYMMDD}-{PROCESS_NAME}-{PID}`
+     * Explicit Finding Identifier: `INVENTORY_DRIFT:{process_name}` or `CVE-XXXX-XXXX`
+     * Process-specific evidence summary and CycloneDX metadata
+     * Individual ECDSA P-256 digital signature
+   - Create a dedicated runtime compliance Job record for that date:
+     `Job(id='RT-20260905', job_type='runtime_telemetry', sbom_filename='Live Runtime Telemetry (2026-09-05)')`
+     so it is cleanly separated from uploaded SBOM scans.
+   - When 5 findings exist on 2026-09-05, generate exactly 5 VEX documents for `RT-20260905`.
+   - In VEX Compliance, viewing date `2026-09-05` will display exactly those 5 verified VEX records.
+
+================================================================================
+CONCLUSION:
+The user is 100% right. The system was recycling old mock records, had no date filter
+in Compliance, and disconnected the two pages. The fixes detailed above establish true,
+cryptographically signed dynamic compliance reporting directly linked to live runtime telemetry.
+================================================================================

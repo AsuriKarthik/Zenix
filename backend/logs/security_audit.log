@@ -1,0 +1,175 @@
+[2026-09-05 16:15:18 UTC] [SECURITY_AUDIT] Action: verification | Recipient: test_5acea35b@zenix.local | SMTP unconfigured. Local audit secret registered: 644287
+[2026-09-05 16:15:37 UTC] [SECURITY_AUDIT] Action: verification | Recipient: newanalyst@zenix.io | SMTP unconfigured. Local audit secret registered: 919762
+[2026-09-05 16:15:38 UTC] [SECURITY_AUDIT] Action: verification | Recipient: dupe@zenix.io | SMTP unconfigured. Local audit secret registered: 482103
+[2026-09-05 16:15:38 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user@zenix.io | SMTP unconfigured. Local audit secret registered: 142106
+[2026-09-05 16:15:39 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user2@zenix.io | SMTP unconfigured. Local audit secret registered: 990226
+[2026-09-05 16:17:25 UTC] [SECURITY_AUDIT] Action: verification | Recipient: newanalyst@zenix.io | SMTP unconfigured. Local audit secret registered: 328825
+[2026-09-05 16:17:26 UTC] [SECURITY_AUDIT] Action: verification | Recipient: dupe@zenix.io | SMTP unconfigured. Local audit secret registered: 138103
+[2026-09-05 16:17:26 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user@zenix.io | SMTP unconfigured. Local audit secret registered: 582965
+[2026-09-05 16:17:27 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user2@zenix.io | SMTP unconfigured. Local audit secret registered: 431849
+[2026-09-05 16:17:33 UTC] [SECURITY_AUDIT] Action: verification | Recipient: admin_etw@zenix.io | SMTP unconfigured. Local audit secret registered: 295236
+[2026-09-05 16:17:34 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw@zenix.io | SMTP unconfigured. Local audit secret registered: 685186
+[2026-09-05 16:17:36 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw2@zenix.io | SMTP unconfigured. Local audit secret registered: 701715
+[2026-09-05 16:17:37 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw3@zenix.io | SMTP unconfigured. Local audit secret registered: 872744
+[2026-09-05 16:17:44 UTC] [SECURITY_AUDIT] Action: verification | Recipient: tel_user@zenix.io | SMTP unconfigured. Local audit secret registered: 758968
+[2026-09-05 16:17:45 UTC] [SECURITY_AUDIT] Action: verification | Recipient: tel_user2@zenix.io | SMTP unconfigured. Local audit secret registered: 136088
+[2026-09-05 16:17:45 UTC] [SECURITY_AUDIT] Action: verification | Recipient: target@zenix.io | SMTP unconfigured. Local audit secret registered: 579490
+[2026-09-05 16:17:47 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader@zenix.io | SMTP unconfigured. Local audit secret registered: 428298
+[2026-09-05 16:17:47 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader2@zenix.io | SMTP unconfigured. Local audit secret registered: 110753
+[2026-09-05 16:17:48 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader3@zenix.io | SMTP unconfigured. Local audit secret registered: 199198
+[2026-09-05 16:17:52 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst@zenix.io | SMTP unconfigured. Local audit secret registered: 227204
+[2026-09-05 16:17:53 UTC] [SECURITY_AUDIT] Action: verification | Recipient: runtime_auditor@zenix.io | SMTP unconfigured. Local audit secret registered: 583290
+[2026-09-05 16:17:53 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst_corr@zenix.io | SMTP unconfigured. Local audit secret registered: 505940
+[2026-09-05 16:20:04 UTC] [SECURITY_AUDIT] Action: verification | Recipient: audit_verifier@zenix.local | SMTP unconfigured. Local audit secret registered: 889900
+[2026-09-05 16:23:03 UTC] [SECURITY_AUDIT] Action: verification | Recipient: newanalyst@zenix.io | SMTP unconfigured. Local audit secret registered: 631847
+[2026-09-05 16:23:04 UTC] [SECURITY_AUDIT] Action: verification | Recipient: dupe@zenix.io | SMTP unconfigured. Local audit secret registered: 628595
+[2026-09-05 16:23:04 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user@zenix.io | SMTP unconfigured. Local audit secret registered: 675394
+[2026-09-05 16:23:05 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user2@zenix.io | SMTP unconfigured. Local audit secret registered: 686547
+[2026-09-05 16:23:11 UTC] [SECURITY_AUDIT] Action: verification | Recipient: admin_etw@zenix.io | SMTP unconfigured. Local audit secret registered: 412280
+[2026-09-05 16:23:12 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw@zenix.io | SMTP unconfigured. Local audit secret registered: 222002
+[2026-09-05 16:23:14 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw2@zenix.io | SMTP unconfigured. Local audit secret registered: 221021
+[2026-09-05 16:23:15 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw3@zenix.io | SMTP unconfigured. Local audit secret registered: 998922
+[2026-09-05 16:23:22 UTC] [SECURITY_AUDIT] Action: verification | Recipient: tel_user@zenix.io | SMTP unconfigured. Local audit secret registered: 737759
+[2026-09-05 16:23:23 UTC] [SECURITY_AUDIT] Action: verification | Recipient: tel_user2@zenix.io | SMTP unconfigured. Local audit secret registered: 286883
+[2026-09-05 16:23:23 UTC] [SECURITY_AUDIT] Action: verification | Recipient: target@zenix.io | SMTP unconfigured. Local audit secret registered: 989365
+[2026-09-05 16:23:25 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader@zenix.io | SMTP unconfigured. Local audit secret registered: 796308
+[2026-09-05 16:23:25 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader2@zenix.io | SMTP unconfigured. Local audit secret registered: 581538
+[2026-09-05 16:23:26 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader3@zenix.io | SMTP unconfigured. Local audit secret registered: 931752
+[2026-09-05 16:23:30 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst@zenix.io | SMTP unconfigured. Local audit secret registered: 776421
+[2026-09-05 16:23:31 UTC] [SECURITY_AUDIT] Action: verification | Recipient: runtime_auditor@zenix.io | SMTP unconfigured. Local audit secret registered: 158174
+[2026-09-05 16:23:31 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst_corr@zenix.io | SMTP unconfigured. Local audit secret registered: 613431
+[2026-09-05 16:26:53 UTC] [SECURITY_AUDIT] Action: verification | Recipient: newanalyst@zenix.io | SMTP unconfigured. Local audit secret registered: 576150
+[2026-09-05 16:26:53 UTC] [SECURITY_AUDIT] Action: verification | Recipient: dupe@zenix.io | SMTP unconfigured. Local audit secret registered: 263103
+[2026-09-05 16:26:54 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user@zenix.io | SMTP unconfigured. Local audit secret registered: 735217
+[2026-09-05 16:26:54 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user2@zenix.io | SMTP unconfigured. Local audit secret registered: 695507
+[2026-09-05 16:27:01 UTC] [SECURITY_AUDIT] Action: verification | Recipient: admin_etw@zenix.io | SMTP unconfigured. Local audit secret registered: 843576
+[2026-09-05 16:27:02 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw@zenix.io | SMTP unconfigured. Local audit secret registered: 733766
+[2026-09-05 16:27:03 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw2@zenix.io | SMTP unconfigured. Local audit secret registered: 646781
+[2026-09-05 16:27:05 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw3@zenix.io | SMTP unconfigured. Local audit secret registered: 467482
+[2026-09-05 16:27:12 UTC] [SECURITY_AUDIT] Action: verification | Recipient: tel_user@zenix.io | SMTP unconfigured. Local audit secret registered: 325504
+[2026-09-05 16:27:12 UTC] [SECURITY_AUDIT] Action: verification | Recipient: tel_user2@zenix.io | SMTP unconfigured. Local audit secret registered: 974659
+[2026-09-05 16:27:13 UTC] [SECURITY_AUDIT] Action: verification | Recipient: target@zenix.io | SMTP unconfigured. Local audit secret registered: 966945
+[2026-09-05 16:27:15 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader@zenix.io | SMTP unconfigured. Local audit secret registered: 937263
+[2026-09-05 16:27:15 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader2@zenix.io | SMTP unconfigured. Local audit secret registered: 218708
+[2026-09-05 16:27:16 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader3@zenix.io | SMTP unconfigured. Local audit secret registered: 360397
+[2026-09-05 16:27:20 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst@zenix.io | SMTP unconfigured. Local audit secret registered: 272115
+[2026-09-05 16:27:21 UTC] [SECURITY_AUDIT] Action: verification | Recipient: runtime_auditor@zenix.io | SMTP unconfigured. Local audit secret registered: 699379
+[2026-09-05 16:27:21 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst_corr@zenix.io | SMTP unconfigured. Local audit secret registered: 371912
+[2026-09-05 16:33:22 UTC] [SECURITY_AUDIT] Action: verification | Recipient: audit_verifier@zenix.local | SMTP unconfigured. Local audit secret registered: 889900
+[2026-09-05 16:33:46 UTC] [SECURITY_AUDIT] Action: verification | Recipient: newanalyst@zenix.io | SMTP unconfigured. Local audit secret registered: 656185
+[2026-09-05 16:33:46 UTC] [SECURITY_AUDIT] Action: verification | Recipient: dupe@zenix.io | SMTP unconfigured. Local audit secret registered: 639109
+[2026-09-05 16:33:47 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user@zenix.io | SMTP unconfigured. Local audit secret registered: 106149
+[2026-09-05 16:33:47 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user2@zenix.io | SMTP unconfigured. Local audit secret registered: 353961
+[2026-09-05 16:33:54 UTC] [SECURITY_AUDIT] Action: verification | Recipient: admin_etw@zenix.io | SMTP unconfigured. Local audit secret registered: 361990
+[2026-09-05 16:33:55 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw@zenix.io | SMTP unconfigured. Local audit secret registered: 256652
+[2026-09-05 16:33:57 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw2@zenix.io | SMTP unconfigured. Local audit secret registered: 465028
+[2026-09-05 16:33:59 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw3@zenix.io | SMTP unconfigured. Local audit secret registered: 918765
+[2026-09-05 16:34:08 UTC] [SECURITY_AUDIT] Action: verification | Recipient: tel_user@zenix.io | SMTP unconfigured. Local audit secret registered: 319596
+[2026-09-05 16:34:08 UTC] [SECURITY_AUDIT] Action: verification | Recipient: tel_user2@zenix.io | SMTP unconfigured. Local audit secret registered: 233595
+[2026-09-05 16:34:09 UTC] [SECURITY_AUDIT] Action: verification | Recipient: target@zenix.io | SMTP unconfigured. Local audit secret registered: 714425
+[2026-09-05 16:34:11 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader@zenix.io | SMTP unconfigured. Local audit secret registered: 265370
+[2026-09-05 16:34:11 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader2@zenix.io | SMTP unconfigured. Local audit secret registered: 562035
+[2026-09-05 16:34:12 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader3@zenix.io | SMTP unconfigured. Local audit secret registered: 609733
+[2026-09-05 16:34:16 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst@zenix.io | SMTP unconfigured. Local audit secret registered: 210969
+[2026-09-05 16:34:17 UTC] [SECURITY_AUDIT] Action: verification | Recipient: runtime_auditor@zenix.io | SMTP unconfigured. Local audit secret registered: 554685
+[2026-09-05 16:34:17 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst_corr@zenix.io | SMTP unconfigured. Local audit secret registered: 991293
+[2026-09-06 15:22:33 UTC] [SECURITY_AUDIT] Action: recovery | Recipient: asuri.karthik116@gmail.com | SMTP unconfigured. Local audit secret registered: 983988
+[2026-09-08 05:46:16 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user1@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:46:17 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:46:19 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user3@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:46:20 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:46:22 UTC] [SECURITY_AUDIT] Action: verification | Recipient: backup_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:46:26 UTC] [SECURITY_AUDIT] Action: verification | Recipient: disable_2fa@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:46:30 UTC] [SECURITY_AUDIT] Action: verification | Recipient: etw_totp@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:09 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user1@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:09 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:11 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user3@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:12 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:14 UTC] [SECURITY_AUDIT] Action: verification | Recipient: backup_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:18 UTC] [SECURITY_AUDIT] Action: verification | Recipient: disable_2fa@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:22 UTC] [SECURITY_AUDIT] Action: verification | Recipient: etw_totp@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:35 UTC] [SECURITY_AUDIT] Action: verification | Recipient: newanalyst@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:35 UTC] [SECURITY_AUDIT] Action: verification | Recipient: dupe@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:35 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:36 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:38 UTC] [SECURITY_AUDIT] Action: verification | Recipient: target@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:39 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:40 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 05:47:40 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader3@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:56:39 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user1@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:56:40 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:56:42 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user3@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:56:42 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:56:45 UTC] [SECURITY_AUDIT] Action: verification | Recipient: backup_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:56:49 UTC] [SECURITY_AUDIT] Action: verification | Recipient: disable_2fa@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:56:53 UTC] [SECURITY_AUDIT] Action: verification | Recipient: etw_totp@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:12 UTC] [SECURITY_AUDIT] Action: verification | Recipient: newanalyst@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:12 UTC] [SECURITY_AUDIT] Action: verification | Recipient: dupe@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:13 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:13 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:20 UTC] [SECURITY_AUDIT] Action: verification | Recipient: admin_etw@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:21 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:23 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:24 UTC] [SECURITY_AUDIT] Action: verification | Recipient: user_etw3@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:30 UTC] [SECURITY_AUDIT] Action: verification | Recipient: tel_user@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:31 UTC] [SECURITY_AUDIT] Action: verification | Recipient: tel_user2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:31 UTC] [SECURITY_AUDIT] Action: verification | Recipient: target@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:33 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:33 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:34 UTC] [SECURITY_AUDIT] Action: verification | Recipient: uploader3@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:35 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user1@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:36 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:38 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user3@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:38 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:41 UTC] [SECURITY_AUDIT] Action: verification | Recipient: backup_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:45 UTC] [SECURITY_AUDIT] Action: verification | Recipient: disable_2fa@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:49 UTC] [SECURITY_AUDIT] Action: verification | Recipient: etw_totp@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:54 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:55 UTC] [SECURITY_AUDIT] Action: verification | Recipient: runtime_auditor@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 07:59:56 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst_corr@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:03:29 UTC] [SECURITY_AUDIT] Action: verification | Recipient: audit_verifier@zenix.local | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:03:44 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user1@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:03:44 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:03:47 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user3@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:03:47 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:03:49 UTC] [SECURITY_AUDIT] Action: verification | Recipient: backup_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:03:54 UTC] [SECURITY_AUDIT] Action: verification | Recipient: disable_2fa@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:03:58 UTC] [SECURITY_AUDIT] Action: verification | Recipient: etw_totp@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:26:37 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user1@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:26:38 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:26:40 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user3@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:26:40 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:26:42 UTC] [SECURITY_AUDIT] Action: verification | Recipient: backup_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:26:46 UTC] [SECURITY_AUDIT] Action: verification | Recipient: disable_2fa@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:26:51 UTC] [SECURITY_AUDIT] Action: verification | Recipient: etw_totp@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:40:28 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user1@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:40:29 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:40:31 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user3@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:40:32 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:40:34 UTC] [SECURITY_AUDIT] Action: verification | Recipient: backup_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:40:38 UTC] [SECURITY_AUDIT] Action: verification | Recipient: disable_2fa@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:40:42 UTC] [SECURITY_AUDIT] Action: verification | Recipient: etw_totp@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:49:58 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user1@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:49:59 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:50:01 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user3@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:50:01 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:50:04 UTC] [SECURITY_AUDIT] Action: verification | Recipient: backup_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:50:07 UTC] [SECURITY_AUDIT] Action: verification | Recipient: disable_2fa@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 08:50:12 UTC] [SECURITY_AUDIT] Action: verification | Recipient: etw_totp@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:05:08 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user1@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:05:08 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user2@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:05:10 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_user3@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:05:11 UTC] [SECURITY_AUDIT] Action: verification | Recipient: totp_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:05:13 UTC] [SECURITY_AUDIT] Action: verification | Recipient: backup_login@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:05:17 UTC] [SECURITY_AUDIT] Action: verification | Recipient: disable_2fa@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:05:22 UTC] [SECURITY_AUDIT] Action: verification | Recipient: etw_totp@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:18:21 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:18:22 UTC] [SECURITY_AUDIT] Action: verification | Recipient: runtime_auditor@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:23:14 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:23:15 UTC] [SECURITY_AUDIT] Action: verification | Recipient: runtime_auditor@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:25:57 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:25:58 UTC] [SECURITY_AUDIT] Action: verification | Recipient: runtime_auditor@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:25:58 UTC] [SECURITY_AUDIT] Action: verification | Recipient: date_auditor@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:32:46 UTC] [SECURITY_AUDIT] Action: verification | Recipient: analyst@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:32:47 UTC] [SECURITY_AUDIT] Action: verification | Recipient: runtime_auditor@zenix.io | SMTP unconfigured. Dispatch event recorded.
+[2026-09-08 09:32:47 UTC] [SECURITY_AUDIT] Action: verification | Recipient: date_auditor@zenix.io | SMTP unconfigured. Dispatch event recorded.

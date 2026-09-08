@@ -11,26 +11,44 @@ Endpoints:
 
 from __future__ import annotations
 
+import base64
 import hmac
 import hashlib
-import time
+import io
+import json
 import logging
 import secrets
+import time
 from datetime import datetime, timezone, timedelta
 from functools import wraps
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, Optional, Any
 
 import bcrypt
+import pyotp
+import qrcode
+import qrcode.image.svg
 from flask import Blueprint, jsonify, request, session
 from flask_login import LoginManager, login_user, logout_user, current_user, login_required
 
 from config import Config
 from db import db, User
+from utils.mailer import send_verification_email
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 log = logging.getLogger(__name__)
 
 login_manager = LoginManager()
+
+
+def generate_qr_svg_data_uri(otpauth_url: str) -> str:
+    """Generate SVG data URI for Google Authenticator QR code without Pillow dependency."""
+    factory = qrcode.image.svg.SvgPathImage
+    img = qrcode.make(otpauth_url, image_factory=factory, box_size=10, border=2)
+    stream = io.BytesIO()
+    img.save(stream)
+    svg_bytes = stream.getvalue()
+    b64_svg = base64.b64encode(svg_bytes).decode('utf-8')
+    return f"data:image/svg+xml;base64,{b64_svg}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -170,22 +188,17 @@ def hash_password(password: str) -> str:
 
 
 def check_password(password: str, password_hash: str) -> bool:
-    """Verify password against bcrypt hash (with plaintext fallback for legacy data)."""
+    """Verify password against bcrypt hash."""
     if not password or not password_hash:
         return False
 
     pwd_str = password.strip()
 
-    # 1. Salted bcrypt hash verification
     try:
         if bcrypt.checkpw(pwd_str.encode('utf-8'), password_hash.encode('utf-8')):
             return True
     except Exception:
         pass
-
-    # 2. Plaintext comparison fallback
-    if pwd_str == password_hash:
-        return True
 
     return False
 
@@ -264,17 +277,20 @@ def register():
     db.session.add(user)
     db.session.commit()
 
-    log.info("Registered user %s (ID: %d, role: %s). OTP issued: %s", email, user.id, role, otp_code)
+    # Securely dispatch verification code via SMTP (or security audit log)
+    send_verification_email(email, otp_code, action="verification")
+
+    log.info("Registered user %s (ID: %d, role: %s). OTP dispatched to email.", email, user.id, role)
     return jsonify({
-        "message": "User account created. Please verify your email with the verification OTP.",
+        "message": "User account created. Please verify your email with the verification OTP sent to your email address.",
         "otp_verification_required": True,
-        "otp": otp_code,  # Provided in response for testing/verification ease
         "user": {
             "id": user.id,
             "email": user.email,
             "role": user.role,
             "is_email_verified": False,
             "has_etw_collector_password": bool(user.etw_collector_password_hash),
+            "is_totp_enabled": False,
             "security_question": user.security_question,
             "setup_completed": False,
             "created_at": user.created_at.isoformat() if user.created_at else None,
@@ -288,7 +304,6 @@ def forgot_password_question():
     Step 1 of Forgot Password: Return user's configured security question for their email.
     Body JSON: {"email": "user@zenix.io"}
     """
-    import random
     data = request.get_json() or {}
     email = (data.get('email') or '').strip().lower()
     if not email:
@@ -298,36 +313,25 @@ def forgot_password_question():
     user = User.query.filter(db.func.lower(User.email) == email).first()
 
     if not user:
-        # Auto-provision recovery user profile for valid email address
-        default_pwd_hash = hash_password("ZenixPass123!")
-        user = User(
-            email=email,
-            password_hash=default_pwd_hash,
-            role='analyst',
-            display_name=email.split('@')[0],
-            is_email_verified=True,
-            security_question="What is your primary security role?",
-            security_answer_hash=hash_password("analyst")
-        )
-        db.session.add(user)
-        db.session.commit()
-        log.info("Auto-provisioned recovery record for valid email %s", email)
+        return jsonify({"error": f"No ZENIX account found with email '{email}'."}), 404
 
     q = user.security_question or "What is your primary security role?"
     
-    # Generate 6-digit OTP for recovery verification
-    recovery_otp = f"{random.randint(100000, 999999)}"
+    # Generate cryptographically secure 6-digit OTP for recovery verification
+    recovery_otp = f"{secrets.randbelow(900000) + 100000:06d}"
     user.verification_otp = recovery_otp
     user.verification_otp_expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=15)
     db.session.commit()
 
-    log.info("Account recovery initiated for email %s (Verification OTP: %s)", email, recovery_otp)
+    # Securely dispatch recovery OTP via SMTP (or security audit log)
+    send_verification_email(user.email, recovery_otp, action="recovery")
+
+    log.info("Account recovery initiated for email %s. Recovery OTP dispatched.", email)
 
     return jsonify({
-        "message": f"Verification code generated and security question retrieved for {email}.",
+        "message": f"Verification code dispatched to {email} and security question retrieved.",
         "email": user.email,
         "security_question": q,
-        "otp": recovery_otp,
     }), 200
 
 
@@ -360,9 +364,6 @@ def forgot_password_reset():
     else:
         default_ans = "admin" if (user.role == 'admin' or 'admin' in user.email.lower()) else "analyst"
         is_correct = (ans == default_ans or ans == "analyst" or ans == "admin")
-
-    if not is_correct and ans in ("analyst", "admin", "zenix", "security"):
-        is_correct = True
 
     if not is_correct:
         return jsonify({"error": "Incorrect security answer or verification code. Please check your input and try again."}), 400
@@ -501,6 +502,20 @@ def login():
     # Requirement 2: ETW MUST BE DISABLED BY DEFAULT ON LOGIN
     etw_collector.stop()
 
+    # Two-Factor Authentication (Google Authenticator) Challenge
+    if getattr(user, 'is_totp_enabled', False) and getattr(user, 'totp_secret', None):
+        clear_failed_attempts(client_ip)
+        pre_auth_token = secrets.token_hex(32)
+        session['pre_auth_user_id'] = user.id
+        session['pre_auth_token'] = pre_auth_token
+        log.info("User %s credentials verified. 2FA challenge initiated.", user.email)
+        return jsonify({
+            "mfa_required": True,
+            "pre_auth_token": pre_auth_token,
+            "email": user.email,
+            "message": "Two-factor authentication required. Please enter code from Google Authenticator."
+        }), 200
+
     # Successful login -> clear failed attempts & log in (session-only)
     clear_failed_attempts(client_ip)
     session.permanent = False
@@ -517,10 +532,13 @@ def login():
         "user": {
             "id": user.id,
             "email": user.email,
+            "display_name": getattr(user, 'display_name', None) or user.email.split('@')[0],
             "role": user.role,
             "is_email_verified": is_verified,
             "has_etw_collector_password": has_etw_pwd,
+            "is_totp_enabled": bool(getattr(user, 'is_totp_enabled', False)),
             "setup_completed": is_verified and has_etw_pwd,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
         },
         "etw_collector_state": "DISABLED",
         "csrf_token": csrf_token,
@@ -566,6 +584,7 @@ def get_current_user():
             "role": current_user.role,
             "is_email_verified": is_verified,
             "has_etw_collector_password": has_etw_pwd,
+            "is_totp_enabled": bool(getattr(current_user, 'is_totp_enabled', False)),
             "setup_completed": is_verified and has_etw_pwd,
             "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
         },
@@ -619,36 +638,232 @@ def update_profile():
             "role": current_user.role,
             "is_email_verified": is_verified,
             "has_etw_collector_password": has_etw_pwd,
+            "is_totp_enabled": bool(getattr(current_user, 'is_totp_enabled', False)),
             "setup_completed": is_verified and has_etw_pwd,
             "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
         }
     }), 200
 
 
-@auth_bp.route('/debug-users', methods=['GET'])
-@auth_bp.route('/users-list', methods=['GET'])
-def get_debug_users():
+# ─────────────────────────────────────────────────────────────────────────────
+# Two-Factor Authentication (Google Authenticator / RFC 6238 TOTP) Endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+@auth_bp.route('/login/2fa', methods=['POST'])
+def login_2fa():
     """
-    Prototype Debug Endpoint: Return all users and stored passwords from zenix.db in plain text.
-    URL: GET http://127.0.0.1:5000/api/auth/debug-users
+    Stage 2 of Two-Factor Authentication Login:
+    Validates 6-digit TOTP code or single-use emergency backup code against pre-authenticated user.
     """
-    users = User.query.all()
-    user_list = []
-    for u in users:
-        user_list.append({
-            "id": u.id,
-            "email": u.email,
-            "account_password": u.password_hash,
-            "etw_collector_password": u.etw_collector_password_hash or u.etw_passphrase_hash or "Same as account password",
-            "role": u.role,
-            "is_email_verified": u.is_email_verified,
-            "verification_otp": u.verification_otp,
-            "created_at": u.created_at.isoformat() if u.created_at else None,
-        })
+    from agents.etw_collector import etw_collector
+    client_ip = request.remote_addr or '127.0.0.1'
+
+    # Check IP rate limiting
+    locked, remaining_secs = is_ip_locked(client_ip)
+    if locked:
+        return jsonify({
+            "error": f"Too many failed attempts. Temporarily locked for {remaining_secs} seconds."
+        }), 429
+
+    data = request.get_json() or {}
+    code = (data.get('code') or data.get('totp_code') or '').strip().replace(" ", "").replace("-", "")
+    pre_auth_token = data.get('pre_auth_token') or ''
+
+    user_id = session.get('pre_auth_user_id')
+    saved_token = session.get('pre_auth_token')
+
+    if not user_id or not pre_auth_token or pre_auth_token != saved_token:
+        return jsonify({"error": "Two-factor authentication session expired. Please sign in again."}), 401
+
+    user = db.session.get(User, user_id)
+    if not user or not user.is_totp_enabled or not user.totp_secret:
+        return jsonify({"error": "User not found or 2FA not configured."}), 400
+
+    is_valid = False
+    is_backup_code = False
+
+    # 1. Try Google Authenticator 6-digit rolling code
+    if len(code) == 6 and code.isdigit():
+        totp = pyotp.TOTP(user.totp_secret)
+        if totp.verify(code, valid_window=1):
+            is_valid = True
+
+    # 2. Try Emergency Single-Use Backup Codes (normalized comparison)
+    if not is_valid and user.totp_backup_codes:
+        clean_backup_code = code.replace("-", "").replace(" ", "").upper()
+        try:
+            stored_codes = json.loads(user.totp_backup_codes)
+            matched_idx = None
+            for idx, h in enumerate(stored_codes):
+                if check_password(clean_backup_code, h):
+                    matched_idx = idx
+                    break
+            if matched_idx is not None:
+                is_valid = True
+                is_backup_code = True
+                stored_codes.pop(matched_idx)
+                user.totp_backup_codes = json.dumps(stored_codes)
+                db.session.commit()
+                log.info("User %s redeemed emergency single-use backup code (%d remaining)", user.email, len(stored_codes))
+        except Exception as exc:
+            log.warning("Error verifying backup codes for user %s: %s", user.email, exc)
+
+    if not is_valid:
+        record_failed_attempt(client_ip)
+        attempts_count = len(_FAILED_LOGIN_ATTEMPTS.get(client_ip, []))
+        log.warning("Invalid 2FA code entered for %s from IP %s (attempt %d/5)", user.email, client_ip, attempts_count)
+        return jsonify({
+            "error": "Invalid authenticator code or emergency backup code.",
+            "attempts_remaining": max(0, 5 - attempts_count)
+        }), 401
+
+    # Clear pre-auth markers & failed attempts
+    clear_failed_attempts(client_ip)
+    session.pop('pre_auth_user_id', None)
+    session.pop('pre_auth_token', None)
+
+    # Disable ETW by default on login
+    etw_collector.stop()
+
+    session.permanent = False
+    login_user(user, remember=False)
+    csrf_token = generate_csrf_token()
+
+    has_etw_pwd = bool(user.etw_collector_password_hash or user.etw_passphrase_hash)
+    is_verified = bool(user.is_email_verified)
+
+    log.info("Logged in user %s via 2FA (backup_used=%s).", user.email, is_backup_code)
+    return jsonify({
+        "message": "Two-factor authentication successful.",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "display_name": getattr(user, 'display_name', None) or user.email.split('@')[0],
+            "role": user.role,
+            "is_email_verified": is_verified,
+            "has_etw_collector_password": has_etw_pwd,
+            "is_totp_enabled": True,
+            "setup_completed": is_verified and has_etw_pwd,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+        },
+        "etw_collector_state": "DISABLED",
+        "csrf_token": csrf_token,
+    }), 200
+
+
+@auth_bp.route('/2fa/setup', methods=['POST'])
+@login_required
+def setup_2fa():
+    """
+    Step 1 of 2FA Setup: Generate base32 TOTP secret, provisioning URI, and SVG QR code.
+    Stores temp_totp_secret in session until verified.
+    """
+    secret = pyotp.random_base32()
+    session['temp_totp_secret'] = secret
+
+    issuer_name = "Zenix Security"
+    totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
+        name=current_user.email,
+        issuer_name=issuer_name
+    )
+
+    qr_svg_uri = generate_qr_svg_data_uri(totp_uri)
 
     return jsonify({
-        "database": "zenix.db",
-        "total_users": len(user_list),
-        "users": user_list
+        "secret": secret,
+        "otpauth_url": totp_uri,
+        "qr_code_svg": qr_svg_uri,
+        "is_totp_enabled": bool(current_user.is_totp_enabled),
+    }), 200
+
+
+@auth_bp.route('/2fa/verify-setup', methods=['POST'])
+@login_required
+def verify_2fa_setup():
+    """
+    Step 2 of 2FA Setup: Validate first 6-digit TOTP code against pending secret.
+    If valid, commits secret to DB, enables 2FA, and generates 8 emergency recovery backup codes.
+    """
+    data = request.get_json() or {}
+    code = (data.get('code') or '').strip().replace(" ", "").replace("-", "")
+    temp_secret = session.get('temp_totp_secret')
+
+    if not temp_secret or not code:
+        return jsonify({"error": "Setup session expired or code missing. Please restart 2FA setup."}), 400
+
+    totp = pyotp.TOTP(temp_secret)
+    if not totp.verify(code, valid_window=1):
+        return jsonify({"error": "Invalid verification code. Ensure your device time is synchronized."}), 400
+
+    # Generate 8 single-use emergency backup codes (e.g. 'A1B2-C3D4')
+    raw_backup_codes = []
+    hashed_backup_codes = []
+    for _ in range(8):
+        c = f"{secrets.token_hex(2).upper()}-{secrets.token_hex(2).upper()}"
+        norm_c = c.replace("-", "")
+        raw_backup_codes.append(c)
+        hashed_backup_codes.append(hash_password(norm_c))
+
+    current_user.totp_secret = temp_secret
+    current_user.is_totp_enabled = True
+    current_user.totp_backup_codes = json.dumps(hashed_backup_codes)
+    session.pop('temp_totp_secret', None)
+    db.session.commit()
+
+    log.info("Enabled 2FA (TOTP) for user %s (ID: %d)", current_user.email, current_user.id)
+    return jsonify({
+        "message": "Two-factor authentication (Google Authenticator) enabled successfully!",
+        "is_totp_enabled": True,
+        "backup_codes": raw_backup_codes,
+    }), 200
+
+
+@auth_bp.route('/2fa/disable', methods=['POST'])
+@login_required
+def disable_2fa():
+    """
+    Disable Two-Factor Authentication.
+    Requires user's current account password and either a valid TOTP code or backup code.
+    """
+    data = request.get_json() or {}
+    password = data.get('password') or ''
+    code = (data.get('code') or '').strip().replace(" ", "").replace("-", "")
+
+    if not password:
+        return jsonify({"error": "Your current account password is required to disable 2FA."}), 400
+
+    if not check_password(password, current_user.password_hash):
+        return jsonify({"error": "Incorrect account password."}), 401
+
+    if current_user.is_totp_enabled and current_user.totp_secret:
+        is_code_valid = False
+        if len(code) == 6 and code.isdigit():
+            totp = pyotp.TOTP(current_user.totp_secret)
+            if totp.verify(code, valid_window=1):
+                is_code_valid = True
+
+        if not is_code_valid and current_user.totp_backup_codes:
+            clean_backup = code.replace("-", "").upper()
+            try:
+                stored = json.loads(current_user.totp_backup_codes)
+                for h in stored:
+                    if check_password(clean_backup, h):
+                        is_code_valid = True
+                        break
+            except Exception:
+                pass
+
+        if not is_code_valid:
+            return jsonify({"error": "Invalid Google Authenticator code or backup code."}), 400
+
+    current_user.totp_secret = None
+    current_user.is_totp_enabled = False
+    current_user.totp_backup_codes = None
+    db.session.commit()
+
+    log.info("Disabled 2FA for user %s", current_user.email)
+    return jsonify({
+        "message": "Two-factor authentication disabled.",
+        "is_totp_enabled": False,
     }), 200
 

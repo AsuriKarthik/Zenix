@@ -9,26 +9,36 @@ import { motion } from 'framer-motion';
  * AppBootLoader Animation
  * Uses the exact Load.mp4 video file for 100% visual, speed, and motion fidelity.
  */
-export function AppBootLoader({ isReady, onComplete }) {
+export function AppBootLoader({ isReady = true, onComplete, minDuration = 2400 }) {
   const hasCalledRef = React.useRef(false);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
+  // Guarantee the loading animation plays for at least `minDuration`
   useEffect(() => {
-    if (isReady && !hasCalledRef.current) {
+    const timer = setTimeout(() => {
+      setMinTimeElapsed(true);
+    }, minDuration);
+    return () => clearTimeout(timer);
+  }, [minDuration]);
+
+  // Once the minimum animation duration has elapsed AND the session is ready:
+  useEffect(() => {
+    if (minTimeElapsed && isReady && !hasCalledRef.current) {
       hasCalledRef.current = true;
       onComplete?.();
     }
-  }, [isReady, onComplete]);
+  }, [minTimeElapsed, isReady, onComplete]);
 
-  // Fallback safety timer: if session check takes long, transition after 2s maximum
+  // Fallback safety timer: if session check or loading hangs, transition after safety timeout
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!hasCalledRef.current) {
         hasCalledRef.current = true;
         onComplete?.();
       }
-    }, 2000);
+    }, Math.max(minDuration + 1600, 4000));
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, [minDuration, onComplete]);
 
   return (
     <div style={{ position: 'relative', width: 520, height: 520, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -60,13 +70,14 @@ const DEFAULT_STEPS = [];
 
 export default function LoadingScreen({
   onComplete,
-  isReady,
+  isReady = true,
   variant = 'startup',
   steps = DEFAULT_STEPS,
-  title = 'Loading Project',
-  subtitle = 'PREPARING THE SELECTED WORKSPACE VIEW',
+  title = 'INITIALIZING SECURITY SYSTEM',
+  subtitle = 'PREPARING SECURE WORKSPACE',
   versionLabel = 'Zenix Core v2.0 · Secure Session',
   stepDurationMs = 350,
+  minDuration = 2400,
 }) {
   const isProject = variant === 'project';
   const [currentStep, setCurrentStep] = useState(0);
@@ -101,14 +112,21 @@ export default function LoadingScreen({
       {isProject ? (
         <div style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.1)', borderTopColor: '#fff', animation: 'spin 1s linear infinite', marginBottom: 32 }} />
       ) : (
-        <AppBootLoader isReady={isReady} onComplete={onComplete} />
+        <AppBootLoader isReady={isReady} onComplete={onComplete} minDuration={minDuration} />
       )}
 
-      <div className="loading-copy">
+      <div className="loading-copy" style={{ textAlign: 'center', marginTop: 4 }}>
         {!isProject ? (
-          <h2 className="loading-title" style={{ fontFamily: 'var(--font-mono)', fontSize: 13, letterSpacing: 2, color: 'var(--text-muted)' }}>
-            INITIALIZING SECURITY SYSTEM
-          </h2>
+          <>
+            <h2 className="loading-title" style={{ fontFamily: 'var(--font-mono)', fontSize: 13, letterSpacing: 2, color: '#F1F5F9', fontWeight: 600 }}>
+              {title}
+            </h2>
+            {subtitle && (
+              <p className="loading-subtitle" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 1.5, color: '#38BDF8', marginTop: 6, opacity: 0.85 }}>
+                {subtitle}
+              </p>
+            )}
+          </>
         ) : (
           <>
             <h2 className="loading-title">{title}</h2>

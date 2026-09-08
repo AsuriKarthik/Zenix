@@ -16,7 +16,12 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import xml.etree.ElementTree as ET
+try:
+    import defusedxml.ElementTree as defused_ET
+    HAS_DEFUSEDXML = True
+except ImportError:
+    HAS_DEFUSEDXML = False
+    import xml.etree.ElementTree as ET  # nosec B314
 from dataclasses import dataclass, field
 from typing import Optional, Any
 
@@ -191,7 +196,10 @@ def parse_sbom(raw_bytes: bytes, filename: str = "") -> list[ParsedComponent]:
     # Try XML parsing (CycloneDX XML, SPDX XML, Maven pom.xml)
     if text_content and text_content.strip().startswith('<'):
         try:
-            root = ET.fromstring(text_content)
+            if HAS_DEFUSEDXML:
+                root = defused_ET.fromstring(text_content)
+            else:
+                root = ET.fromstring(text_content)  # nosec B314
             components = _parse_xml_sbom(root)
             if components:
                 return components

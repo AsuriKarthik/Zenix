@@ -53,12 +53,22 @@ def is_elevated() -> bool:
         return False
 
 
+# Safe import of native Windows ETW library
+try:
+    import etw
+    _PYWINTRACE_AVAILABLE = True
+except Exception as _etw_err:
+    _PYWINTRACE_AVAILABLE = False
+    log.debug("pywintrace not available: %s", _etw_err)
+
+
 class ETWCollector:
     """
     ETW Collector manager.
 
     Maintains active status, dynamic privilege state, and image-load event correlation.
-    Fully thread-safe with continuous background telemetry collection.
+    Directly interacts with Windows kernel ETW (via pywintrace) when elevated, and
+    live host process memory maps (via psutil / Win32) with zero synthetic data.
     """
 
     PROVIDER_NAME = "Microsoft-Windows-Kernel-Process"
@@ -69,6 +79,7 @@ class ETWCollector:
         self._override_available: Optional[bool] = None
         self._worker_thread: Optional[threading.Thread] = None
         self._active_session_token: Optional[str] = None
+        self._native_etw_job: Optional[Any] = None
         self._lock = threading.Lock()
 
     @property
@@ -106,12 +117,19 @@ class ETWCollector:
         except Exception as exc:
             log.debug("Error fetching ETW status counts: %s", exc)
 
+        native_active = bool(self._native_etw_job and getattr(self._native_etw_job, 'running', False))
+
         return {
             "running": self._running,
             "mode": self.mode,
             "is_elevated": self.is_elevated_privilege,
+            "elevation_state": "Elevated (Native Kernel ETW Active)" if native_active else (
+                "Elevated (Admin Privileges Available)" if self.is_elevated_privilege else "Standard User (Host Process Introspection Active)"
+            ),
             "platform": sys.platform,
             "active_provider": self.PROVIDER_NAME,
+            "native_kernel_etw": native_active,
+            "pywintrace_supported": _PYWINTRACE_AVAILABLE,
             "event_count_total": event_count_total,
             "event_count_last_hour": event_count_last_hour,
             "session_token": self._active_session_token,
@@ -144,7 +162,7 @@ class ETWCollector:
             return True
 
     def _start_worker_thread(self, app: Any) -> None:
-        """Internal helper to launch the background continuous telemetry collection thread."""
+        """Internal helper to launch native ETW and continuous process telemetry."""
         if self._worker_thread and self._worker_thread.is_alive():
             return
 
@@ -153,6 +171,50 @@ class ETWCollector:
             log.info("ETW Collector running in synchronous test mode.")
             return
 
+        # 1. Attempt Native Windows Kernel ETW Subscription via pywintrace if elevated
+        if is_windows() and self.is_elevated_privilege and _PYWINTRACE_AVAILABLE:
+            try:
+                def _on_kernel_event(event_tufo):
+                    try:
+                        event_id, event = event_tufo
+                        image_name = event.get("ImageName") or event.get("FileName") or ""
+                        proc_id = event.get("ProcessId") or event.get("ProcessID") or 0
+                        if image_name and self._running:
+                            with app.app_context():
+                                now_time = _utcnow()
+                                mod_name = os.path.basename(str(image_name))
+                                evt = EtwEvent(
+                                    image_path=str(image_name),
+                                    evidence_source='etw',
+                                    pid=int(proc_id),
+                                    process_name=mod_name,
+                                    timestamp=now_time,
+                                    provider=self.PROVIDER_NAME,
+                                    event_id=int(event_id) if isinstance(event_id, int) else 2,
+                                    session_id=self._active_session_token,
+                                    event_type='ImageLoad',
+                                    module=mod_name,
+                                    severity='info',
+                                    date=now_time.strftime('%Y-%m-%d'),
+                                )
+                                db.session.add(evt)
+                                db.session.commit()
+                    except Exception as err:
+                        log.debug("Kernel ETW live event persist error: %s", err)
+
+                self._native_etw_job = etw.ETW(
+                    session_name="ZenixKernelProcessTrace",
+                    providers=[etw.ProviderInfo(self.PROVIDER_NAME, etw.GUID(self.PROVIDER_GUID))],
+                    event_callback=_on_kernel_event,
+                    ignore_exists_error=True,
+                )
+                self._native_etw_job.start()
+                log.info("Successfully launched native pywintrace Windows Kernel trace session on %s", self.PROVIDER_NAME)
+            except Exception as etw_start_err:
+                log.info("Native Kernel ETW session start note (%s). Running live host memory introspection.", etw_start_err)
+                self._native_etw_job = None
+
+        # 2. Host Process & Memory Introspection Worker
         def _worker():
             from agents.reachability_psutil import get_active_memory_maps
             from db import EtwSession
@@ -169,10 +231,12 @@ class ETWCollector:
                                 except Exception as sync_err:
                                     log.debug("Runtime inventory sync error: %s", sync_err)
 
-                            # Efficient batch query for existing events
+                            # Determine tier label based on active native trace status
+                            evidence_label = 'etw' if (self._native_etw_job and getattr(self._native_etw_job, 'running', False)) else 'psutil'
+
                             existing_events = set(
                                 (e.pid, e.image_path)
-                                for e in EtwEvent.query.filter(EtwEvent.evidence_source == 'etw').all()
+                                for e in EtwEvent.query.filter(EtwEvent.evidence_source == evidence_label).all()
                             )
 
                             new_events = []
@@ -189,11 +253,11 @@ class ETWCollector:
                                     mod_name = os.path.basename(image_p) if image_p else "unknown"
                                     evt = EtwEvent(
                                         image_path=image_p,
-                                        evidence_source='etw',
+                                        evidence_source=evidence_label,
                                         pid=obs["pid"],
                                         process_name=obs["process_name"],
                                         timestamp=now_time,
-                                        provider=self.PROVIDER_NAME,
+                                        provider=self.PROVIDER_NAME if evidence_label == 'etw' else "Windows-Process-Monitor",
                                         event_id=2,  # ImageLoad
                                         session_id=self._active_session_token,
                                         event_type='ImageLoad',
@@ -206,7 +270,6 @@ class ETWCollector:
                             if new_events:
                                 db.session.add_all(new_events)
 
-                                # Also update session event count if session exists
                                 if self._active_session_token:
                                     try:
                                         sess_record = EtwSession.query.filter_by(
@@ -220,7 +283,7 @@ class ETWCollector:
                                         pass
 
                                 db.session.commit()
-                                log.debug("Captured %d new ETW image-load events.", len(new_events))
+                                log.debug("Captured %d new live image-load events.", len(new_events))
                 except Exception as exc:
                     log.debug("ETW background telemetry capture error: %s", exc)
                 finally:
@@ -243,6 +306,12 @@ class ETWCollector:
         with self._lock:
             self._running = False
             self._active_session_token = None
+            if self._native_etw_job:
+                try:
+                    self._native_etw_job.stop()
+                except Exception as stop_err:
+                    log.debug("Native ETW job stop error: %s", stop_err)
+                self._native_etw_job = None
             log.info("ETW Collector stopping.")
 
         if self._worker_thread and self._worker_thread.is_alive():

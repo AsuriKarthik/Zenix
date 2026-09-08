@@ -12,10 +12,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, Lock, Mail } from 'lucide-react';
+import { AlertCircle, Lock, Mail, ShieldCheck, ArrowLeft, KeyRound } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import useAuthStore from '../../store/authStore';
-import { login as apiLogin, register, setupEtwPassword, verifyEmail, getSecurityQuestion, resetPasswordWithSecurityAnswer } from '../../api/auth';
+import { login as apiLogin, login2FA, register, setupEtwPassword, verifyEmail, getSecurityQuestion, resetPasswordWithSecurityAnswer } from '../../api/auth';
 import LoadingScreen from '../layout/LoadingScreen';
 
 /* ── Forgot Password / Security Question Recovery Modal ────────── */
@@ -174,114 +174,7 @@ function ForgotPasswordModal({ onClose, onSuccess }) {
   );
 }
 
-/* ── First-Time / Environment ETW Collector Setup & Permission Modal ──── */
-function EtwSetupModal({ onComplete }) {
-  const [passphrase, setPassphrase] = useState('');
-  const [confirmPass, setConfirmPass] = useState('');
-  const [permissionGranted, setPermissionGranted] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!permissionGranted) {
-      setError('You must grant ETW telemetry collection permission to proceed.');
-      return;
-    }
-    if (passphrase !== confirmPass) {
-      setError('Passwords do not match.');
-      return;
-    }
-    if (passphrase.length < 6) {
-      setError('ETW Collector Passphrase must be at least 6 characters.');
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      await setupEtwPassword(passphrase);
-      localStorage.setItem('zenix_etw_permission_granted', 'true');
-      onComplete();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to authorize ETW Collector Passphrase.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="modal-backdrop" style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0, 0, 0, 0.88)', backdropFilter: 'blur(10px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
-    }}>
-      <div className="card" style={{ width: '100%', maxWidth: 480, background: '#18191C', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: 16, padding: 28, boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4ADE80' }}>
-            <Lock size={22} />
-          </div>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#F5F5F5', fontFamily: 'var(--font-heading)' }}>ETW Telemetry Access Permission</div>
-            <div style={{ fontSize: 11, color: '#4ADE80', fontFamily: 'var(--font-mono)' }}>MANDATORY SYSTEM AUTHORIZATION</div>
-          </div>
-        </div>
-        <div style={{
-          padding: 14,
-          background: 'rgba(34, 197, 94, 0.08)',
-          border: '1px solid rgba(34, 197, 94, 0.25)',
-          borderRadius: 10,
-          fontSize: 12,
-          color: '#E2E8F0',
-          lineHeight: 1.6,
-          marginBottom: 18
-        }}>
-          <strong style={{ color: '#4ADE80' }}>CRITICAL SECURITY REQUIREMENT:</strong> Zenix collects real-time kernel process telemetry via Event Tracing for Windows (ETW). Please grant access permission and configure your ETW Passphrase to enable live runtime monitoring in this environment.
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)' }}>
-            <input
-              type="checkbox"
-              id="grant-etw-permission-check"
-              checked={permissionGranted}
-              onChange={e => setPermissionGranted(e.target.checked)}
-              style={{ width: 16, height: 16, accentColor: '#22c55e', cursor: 'pointer' }}
-            />
-            <label htmlFor="grant-etw-permission-check" style={{ fontSize: 12, color: '#F5F5F5', cursor: 'pointer', fontWeight: 500 }}>
-              I grant Zenix permission to collect ETW runtime telemetry on this system.
-            </label>
-          </div>
-
-          <div className="input-group mb-4">
-            <label className="input-label" style={{ color: '#F5F5F5', fontSize: 12 }}>ETW Collector Passphrase</label>
-            <input
-              className="input input-mono"
-              type="password"
-              placeholder="Enter ETW Collector Passphrase (min 6 chars)"
-              value={passphrase}
-              onChange={e => setPassphrase(e.target.value)}
-              required
-            />
-          </div>
-          <div className="input-group mb-4">
-            <label className="input-label" style={{ color: '#F5F5F5', fontSize: 12 }}>Confirm ETW Collector Passphrase</label>
-            <input
-              className="input input-mono"
-              type="password"
-              placeholder="Repeat ETW Collector Passphrase"
-              value={confirmPass}
-              onChange={e => setConfirmPass(e.target.value)}
-              required
-            />
-          </div>
-          {error && <div className="alert alert-error mb-4" style={{ fontSize: 12 }}>{error}</div>}
-          <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', background: '#22c55e', color: '#000', fontWeight: 700 }} disabled={submitting}>
-            {submitting ? 'Saving Security Credential…' : 'Grant Permission & Authorize ETW Access'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 /* ── Main LoginPage Component ──────────────────────────────────── */
 export default function LoginPage() {
@@ -299,9 +192,14 @@ export default function LoginPage() {
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [authStatus, setAuthStatus] = useState('idle');
   const [isLoadingAnim, setIsLoadingAnim] = useState(false);
-  const [showFirstTimeEtwModal, setShowFirstTimeEtwModal] = useState(false);
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const validatedUserRef = useRef(null);
+
+  // ── Two-Factor Authentication (Google Authenticator) state ────
+  const [isMfaRequired, setIsMfaRequired] = useState(false);
+  const [preAuthToken, setPreAuthToken] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [isBackupCodeMode, setIsBackupCodeMode] = useState(false);
 
   // If already authenticated on initial mount, redirect to app
   useEffect(() => {
@@ -327,6 +225,7 @@ export default function LoginPage() {
     setMode(m);
     setError(null);
     setLockoutSeconds(0);
+    setIsMfaRequired(false);
   };
 
   const handleSignIn = async (e) => {
@@ -338,20 +237,22 @@ export default function LoginPage() {
 
     try {
       const data = await apiLogin(email.trim().toLowerCase(), password);
-      if (!data?.user) {
-        throw new Error('Invalid database credentials.');
-      }
 
-      validatedUserRef.current = data.user;
-
-      const hasPermission = localStorage.getItem('zenix_etw_permission_granted') === 'true';
-      if (!data.user.has_etw_passkey || !hasPermission) {
-        setShowFirstTimeEtwModal(true);
+      // Check if Google Authenticator 2FA challenge is required
+      if (data?.mfa_required) {
+        setIsMfaRequired(true);
+        setPreAuthToken(data.pre_auth_token);
+        setMfaCode('');
         setIsSubmitting(false);
         setAuthStatus('idle');
         return;
       }
 
+      if (!data?.user) {
+        throw new Error('Invalid database credentials.');
+      }
+
+      validatedUserRef.current = data.user;
       localStorage.setItem('zenix_session_authenticated', 'true');
       setAuthStatus('success');
       setIsLoadingAnim(true);
@@ -369,35 +270,54 @@ export default function LoginPage() {
     }
   };
 
+  const handle2FASubmit = async (e) => {
+    e.preventDefault();
+    if (lockoutSeconds > 0 || isSubmitting) return;
+    if (!mfaCode.trim()) {
+      setError('Please enter your 6-digit code or emergency backup code.');
+      return;
+    }
+    setError(null);
+    setIsSubmitting(true);
+    setAuthStatus('submitting');
+
+    try {
+      const data = await login2FA(preAuthToken, mfaCode.trim());
+      if (!data?.user) {
+        throw new Error('2FA validation failed.');
+      }
+
+      validatedUserRef.current = data.user;
+      localStorage.setItem('zenix_session_authenticated', 'true');
+      setAuthStatus('success');
+      setIsLoadingAnim(true);
+    } catch (err) {
+      setAuthStatus('error');
+      setIsSubmitting(false);
+      const data = err.response?.data;
+      if (err.response?.status === 429) {
+        const match = data?.error?.match(/(\d+) seconds/);
+        if (match) setLockoutSeconds(parseInt(match[1], 10));
+        setError(data?.error || 'Too many attempts. Please wait.');
+      } else {
+        setError(data?.error || 'Invalid code. Please check your Google Authenticator app.');
+      }
+    }
+  };
+
   // Called by SignUpForm on successful registration — auto login
   const handleSignUpSuccess = async (registeredEmail, registeredPassword) => {
     try {
       const data = await apiLogin(registeredEmail, registeredPassword);
       if (data?.user) {
         validatedUserRef.current = data.user;
-        const hasPermission = localStorage.getItem('zenix_etw_permission_granted') === 'true';
-        if (!data.user.has_etw_passkey || !hasPermission) {
-          setShowFirstTimeEtwModal(true);
-        } else {
-          localStorage.setItem('zenix_session_authenticated', 'true');
-          setIsLoadingAnim(true);
-        }
+        localStorage.setItem('zenix_session_authenticated', 'true');
+        setIsLoadingAnim(true);
       }
     } catch {
       switchMode('signin');
       setEmail(registeredEmail);
     }
-  };
-
-  const handleFirstTimeEtwComplete = () => {
-    setShowFirstTimeEtwModal(false);
-    localStorage.setItem('zenix_etw_permission_granted', 'true');
-    localStorage.setItem('zenix_session_authenticated', 'true');
-    if (validatedUserRef.current) {
-      validatedUserRef.current.has_etw_passkey = true;
-    }
-    setAuthStatus('success');
-    setIsLoadingAnim(true);
   };
 
   const handleBootComplete = React.useCallback(() => {
@@ -412,6 +332,9 @@ export default function LoginPage() {
     return (
       <LoadingScreen
         isReady={true}
+        title="AUTHENTICATING SESSION"
+        subtitle="INITIALIZING SECURITY WORKSPACE"
+        minDuration={2400}
         onComplete={handleBootComplete}
       />
     );
@@ -701,10 +624,6 @@ function SignUpForm({ onSuccess }) {
 
   return (
     <div className="login-page">
-      {showFirstTimeEtwModal && (
-        <EtwSetupModal onComplete={handleFirstTimeEtwComplete} />
-      )}
-
       {showForgotPasswordModal && (
         <ForgotPasswordModal
           onClose={() => setShowForgotPasswordModal(false)}
@@ -735,199 +654,333 @@ function SignUpForm({ onSuccess }) {
           <div className="login-panel-sub">Vulnerability Intelligence Platform</div>
         </div>
 
-        {/* Mode Toggle Tabs */}
-        <div style={{
-          display: 'flex',
-          marginBottom: 'var(--space-6)',
-          background: 'rgba(0,0,0,0.3)',
-          borderRadius: 'var(--radius-md)',
-          padding: 3,
-          gap: 3,
-        }}>
-          {[
-            { key: 'signin', label: 'Sign In' },
-            { key: 'signup', label: 'Sign Up' },
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              id={`auth-tab-${key}`}
-              type="button"
-              onClick={() => switchMode(key)}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                borderRadius: 'calc(var(--radius-md) - 2px)',
-                fontFamily: 'var(--font-body)',
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: 'pointer',
-                border: 'none',
-                transition: 'all 200ms ease',
-                background: mode === key
-                  ? 'rgba(124, 38, 236, 0.18)'
-                  : 'transparent',
-                color: mode === key
-                  ? 'var(--text-primary)'
-                  : 'var(--text-muted)',
-                boxShadow: mode === key
-                  ? 'inset 0 0 0 1px rgba(124,38,236,0.35)'
-                  : 'none',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {isMfaRequired ? (
+          <motion.div
+            key="2fa-challenge"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 44, height: 44, borderRadius: '50%',
+                background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)',
+                marginBottom: 10, color: '#38BDF8'
+              }}>
+                <ShieldCheck size={24} />
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+                Two-Factor Authentication
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.4 }}>
+                {isBackupCodeMode
+                  ? 'Enter one of your 8-character single-use emergency backup codes.'
+                  : 'Enter the 6-digit rolling verification code from Google Authenticator.'}
+              </div>
+            </div>
 
-        {/* Animated form area */}
-        <AnimatePresence mode="wait">
-          {mode === 'signin' ? (
-            <motion.div
-              key="signin"
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 12 }}
-              transition={{ duration: 0.2 }}
-            >
-              <form className="login-form" onSubmit={handleSignIn}>
-                <div className="input-group">
-                  <label className="input-label" htmlFor="login-email">Email</label>
-                  <div style={{ position: 'relative' }}>
-                    <Mail size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-                    <input
-                      id="login-email"
-                      className="input"
-                      type="email"
-                      placeholder="analyst@organization.com"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      required
-                      autoComplete="email"
-                      disabled={isSubmitting || lockoutSeconds > 0}
-                      style={{ paddingLeft: 36 }}
-                    />
-                  </div>
-                </div>
-
-                <div className="input-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label className="input-label" htmlFor="login-password">Password</label>
-                    <button
-                      type="button"
-                      onClick={() => setShowForgotPasswordModal(true)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        fontSize: 11,
-                        cursor: 'pointer',
-                        padding: 0,
-                        transition: 'color 0.2s',
-                      }}
-                      onMouseEnter={(e) => e.target.style.color = '#DAFC6F'}
-                      onMouseLeave={(e) => e.target.style.color = 'var(--text-muted)'}
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
-                  <div style={{ position: 'relative' }}>
-                    <Lock size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-                    <input
-                      id="login-password"
-                      className="input"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      required
-                      autoComplete="current-password"
-                      disabled={isSubmitting || lockoutSeconds > 0}
-                      style={{ paddingLeft: 36 }}
-                    />
-                  </div>
-                </div>
-
-                <AnimatePresence mode="wait">
-                  {error && (
-                    <motion.div
-                      className="alert alert-error"
-                      initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <AlertCircle size={14} style={{ flexShrink: 0 }} />
-                      <div>
-                        <div>{error}</div>
-                        {lockoutSeconds > 0 && (
-                          <div style={{ marginTop: 4, fontFamily: 'var(--font-mono)', fontSize: 11 }}>
-                            Retry in {lockoutSeconds}s
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <button
-                  id="login-submit-btn"
-                  type="submit"
-                  className="btn btn-primary btn-lg"
-                  style={{ marginTop: 4 }}
-                  disabled={isSubmitting || lockoutSeconds > 0}
-                >
-                  {isSubmitting ? (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: 1 }}>AUTHENTICATING…</span>
-                  ) : lockoutSeconds > 0 ? (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: 1 }}>LOCKED · {lockoutSeconds}s</span>
-                  ) : (
-                    'Authenticate & Sign In'
-                  )}
-                </button>
-
-                {/* Switch hint */}
-                <div style={{ textAlign: 'center', marginTop: 'var(--space-3)' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>No account?{' '}</span>
-                  <button
-                    type="button"
-                    onClick={() => switchMode('signup')}
+            <form className="login-form" onSubmit={handle2FASubmit}>
+              <div className="input-group">
+                <label className="input-label" htmlFor="mfa-code-input" style={{ textAlign: 'center', display: 'block', fontSize: 10, letterSpacing: 1.5 }}>
+                  {isBackupCodeMode ? 'EMERGENCY RECOVERY CODE' : 'AUTHENTICATOR APP CODE'}
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="mfa-code-input"
+                    className="input input-mono"
+                    type="text"
+                    placeholder={isBackupCodeMode ? "XXXX-XXXX" : "000000"}
+                    value={mfaCode}
+                    onChange={e => setMfaCode(e.target.value)}
+                    required
+                    autoFocus
+                    autoComplete="one-time-code"
+                    disabled={isSubmitting || lockoutSeconds > 0}
+                    maxLength={isBackupCodeMode ? 12 : 8}
                     style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 12, color: 'var(--color-verified)',
-                      textDecoration: 'underline', textUnderlineOffset: 3,
+                      textAlign: 'center',
+                      fontSize: isBackupCodeMode ? 18 : 22,
+                      letterSpacing: isBackupCodeMode ? 4 : 8,
+                      padding: '12px 16px',
+                      fontWeight: 700,
+                      color: '#DAFC6F',
+                      background: 'rgba(0,0,0,0.45)',
+                      border: '1px solid rgba(218, 252, 111, 0.4)',
+                      borderRadius: 'var(--radius-md)',
                     }}
-                  >
-                    Create one
-                  </button>
+                  />
                 </div>
-              </form>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="signup"
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -12 }}
-              transition={{ duration: 0.2 }}
-            >
-              <SignUpForm onSuccess={handleSignUpSuccess} />
+              </div>
 
-              {/* Switch hint */}
-              <div style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Already have an account?{' '}</span>
+              <AnimatePresence mode="wait">
+                {error && (
+                  <motion.div
+                    className="alert alert-error"
+                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                    <div>{error}</div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <button
+                id="mfa-submit-btn"
+                type="submit"
+                className="btn btn-primary btn-lg"
+                style={{ marginTop: 6 }}
+                disabled={isSubmitting || lockoutSeconds > 0}
+              >
+                {isSubmitting ? (
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: 1 }}>VERIFYING…</span>
+                ) : (
+                  'Verify & Continue'
+                )}
+              </button>
+
+              {/* Toggle Backup Mode */}
+              <div style={{ textAlign: 'center', marginTop: 12 }}>
                 <button
                   type="button"
-                  onClick={() => switchMode('signin')}
+                  onClick={() => {
+                    setIsBackupCodeMode(!isBackupCodeMode);
+                    setMfaCode('');
+                    setError(null);
+                  }}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
                     fontSize: 12, color: 'var(--color-verified)',
                     textDecoration: 'underline', textUnderlineOffset: 3,
                   }}
                 >
-                  Sign in
+                  {isBackupCodeMode
+                    ? 'Use Google Authenticator app instead'
+                    : 'Lost phone? Use emergency backup code'}
                 </button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
+              {/* Back to sign in */}
+              <div style={{ textAlign: 'center', marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMfaRequired(false);
+                    setPreAuthToken('');
+                    setMfaCode('');
+                    setError(null);
+                    setAuthStatus('idle');
+                  }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 11, color: 'var(--text-muted)',
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <ArrowLeft size={12} /> Back to email & password
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        ) : (
+          <>
+            {/* Mode Toggle Tabs */}
+            <div style={{
+              display: 'flex',
+              marginBottom: 'var(--space-6)',
+              background: 'rgba(0,0,0,0.3)',
+              borderRadius: 'var(--radius-md)',
+              padding: 3,
+              gap: 3,
+            }}>
+              {[
+                { key: 'signin', label: 'Sign In' },
+                { key: 'signup', label: 'Sign Up' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  id={`auth-tab-${key}`}
+                  type="button"
+                  onClick={() => switchMode(key)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: 'calc(var(--radius-md) - 2px)',
+                    fontFamily: 'var(--font-body)',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    border: 'none',
+                    transition: 'all 200ms ease',
+                    background: mode === key
+                      ? 'rgba(124, 38, 236, 0.18)'
+                      : 'transparent',
+                    color: mode === key
+                      ? 'var(--text-primary)'
+                      : 'var(--text-muted)',
+                    boxShadow: mode === key
+                      ? 'inset 0 0 0 1px rgba(124,38,236,0.35)'
+                      : 'none',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Animated form area */}
+            <AnimatePresence mode="wait">
+              {mode === 'signin' ? (
+                <motion.div
+                  key="signin"
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 12 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <form className="login-form" onSubmit={handleSignIn}>
+                    <div className="input-group">
+                      <label className="input-label" htmlFor="login-email">Email</label>
+                      <div style={{ position: 'relative' }}>
+                        <Mail size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                        <input
+                          id="login-email"
+                          className="input"
+                          type="email"
+                          placeholder="analyst@organization.com"
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
+                          required
+                          autoComplete="email"
+                          disabled={isSubmitting || lockoutSeconds > 0}
+                          style={{ paddingLeft: 36 }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="input-group">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label className="input-label" htmlFor="login-password">Password</label>
+                        <button
+                          type="button"
+                          onClick={() => setShowForgotPasswordModal(true)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            fontSize: 11,
+                            cursor: 'pointer',
+                            padding: 0,
+                            transition: 'color 0.2s',
+                          }}
+                          onMouseEnter={(e) => e.target.style.color = '#DAFC6F'}
+                          onMouseLeave={(e) => e.target.style.color = 'var(--text-muted)'}
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                      <div style={{ position: 'relative' }}>
+                        <Lock size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                        <input
+                          id="login-password"
+                          className="input"
+                          type="password"
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
+                          required
+                          autoComplete="current-password"
+                          disabled={isSubmitting || lockoutSeconds > 0}
+                          style={{ paddingLeft: 36 }}
+                        />
+                      </div>
+                    </div>
+
+                    <AnimatePresence mode="wait">
+                      {error && (
+                        <motion.div
+                          className="alert alert-error"
+                          initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                          <div>
+                            <div>{error}</div>
+                            {lockoutSeconds > 0 && (
+                              <div style={{ marginTop: 4, fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+                                Retry in {lockoutSeconds}s
+                              </div>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <button
+                      id="login-submit-btn"
+                      type="submit"
+                      className="btn btn-primary btn-lg"
+                      style={{ marginTop: 4 }}
+                      disabled={isSubmitting || lockoutSeconds > 0}
+                    >
+                      {isSubmitting ? (
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: 1 }}>AUTHENTICATING…</span>
+                      ) : lockoutSeconds > 0 ? (
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: 1 }}>LOCKED · {lockoutSeconds}s</span>
+                      ) : (
+                        'Authenticate & Sign In'
+                      )}
+                    </button>
+
+                    {/* Switch hint */}
+                    <div style={{ textAlign: 'center', marginTop: 'var(--space-3)' }}>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>No account?{' '}</span>
+                      <button
+                        type="button"
+                        onClick={() => switchMode('signup')}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          fontSize: 12, color: 'var(--color-verified)',
+                          textDecoration: 'underline', textUnderlineOffset: 3,
+                        }}
+                      >
+                        Create one
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="signup"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -12 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <SignUpForm onSuccess={handleSignUpSuccess} />
+
+                  {/* Switch hint */}
+                  <div style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Already have an account?{' '}</span>
+                    <button
+                      type="button"
+                      onClick={() => switchMode('signin')}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: 12, color: 'var(--color-verified)',
+                        textDecoration: 'underline', textUnderlineOffset: 3,
+                      }}
+                    >
+                      Sign in
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>
+        )}
 
         {/* Footer */}
         <div className="login-footer" style={{ marginTop: 'var(--space-5)' }}>

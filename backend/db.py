@@ -49,6 +49,9 @@ class User(db.Model, UserMixin): # type: ignore[misc]
     security_answer_hash: Mapped[Optional[str]] = mapped_column(db.Text, nullable=True)  # bcrypt hashed answer
     display_name: Mapped[Optional[str]] = mapped_column(db.Text, nullable=True)
     role: Mapped[str] = mapped_column(db.Text, nullable=False, default='analyst')  # 'analyst' | 'admin'
+    totp_secret: Mapped[Optional[str]] = mapped_column(db.Text, nullable=True)
+    is_totp_enabled: Mapped[bool] = mapped_column(db.Boolean, nullable=False, default=False)
+    totp_backup_codes: Mapped[Optional[str]] = mapped_column(db.Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(db.DateTime, nullable=False, default=_utcnow)
 
     jobs = db.relationship('Job', back_populates='user', lazy='dynamic')
@@ -67,6 +70,9 @@ class User(db.Model, UserMixin): # type: ignore[misc]
         is_email_verified: bool = False,
         verification_otp: Optional[str] = None,
         verification_otp_expires_at: Optional[datetime] = None,
+        totp_secret: Optional[str] = None,
+        is_totp_enabled: bool = False,
+        totp_backup_codes: Optional[str] = None,
         created_at: Optional[datetime] = None,
         id: Optional[int] = None,
     ) -> None:
@@ -82,6 +88,9 @@ class User(db.Model, UserMixin): # type: ignore[misc]
         self.is_email_verified = is_email_verified
         self.verification_otp = verification_otp
         self.verification_otp_expires_at = verification_otp_expires_at
+        self.totp_secret = totp_secret
+        self.is_totp_enabled = is_totp_enabled
+        self.totp_backup_codes = totp_backup_codes
         self.created_at = created_at if created_at is not None else _utcnow()
         if id is not None:
             self.id = id
@@ -268,6 +277,9 @@ class Vulnerability(db.Model): # type: ignore[misc]
     epss_fetched_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime)
     kev_cached_at: Mapped[Optional[datetime]] = mapped_column(db.DateTime)
 
+    shodan_exposed_hosts: Mapped[Optional[int]] = mapped_column(db.Integer, nullable=True)
+    virustotal_detections: Mapped[Optional[int]] = mapped_column(db.Integer, nullable=True)
+
     component = db.relationship('Component', back_populates='vulnerabilities')
     risk_score = db.relationship('RiskScore', back_populates='vulnerability', uselist=False)
 
@@ -294,6 +306,8 @@ class Vulnerability(db.Model): # type: ignore[misc]
         nvd_fetched_at: Optional[datetime] = None,
         epss_fetched_at: Optional[datetime] = None,
         kev_cached_at: Optional[datetime] = None,
+        shodan_exposed_hosts: Optional[int] = None,
+        virustotal_detections: Optional[int] = None,
         id: Optional[int] = None,
     ) -> None:
         super().__init__()
@@ -318,6 +332,8 @@ class Vulnerability(db.Model): # type: ignore[misc]
         self.nvd_fetched_at = nvd_fetched_at
         self.epss_fetched_at = epss_fetched_at
         self.kev_cached_at = kev_cached_at
+        self.shodan_exposed_hosts = shodan_exposed_hosts
+        self.virustotal_detections = virustotal_detections
         if id is not None:
             self.id = id
 
@@ -837,6 +853,8 @@ def init_db(app: Any) -> None:
             ("vulnerability", "epss_source", "TEXT DEFAULT 'FIRST EPSS'"),
             ("vulnerability", "kev_source", "TEXT DEFAULT 'CISA KEV'"),
             ("vulnerability", "runtime_source", "TEXT DEFAULT 'none'"),
+            ("vulnerability", "shodan_exposed_hosts", "INTEGER"),
+            ("vulnerability", "virustotal_detections", "INTEGER"),
             ("user", "etw_passphrase_hash", "TEXT"),
             ("user", "etw_collector_password_hash", "TEXT"),
             ("user", "security_question", "TEXT"),
@@ -845,6 +863,9 @@ def init_db(app: Any) -> None:
             ("user", "display_name", "TEXT"),
             ("user", "verification_otp", "TEXT"),
             ("user", "verification_otp_expires_at", "DATETIME"),
+            ("user", "totp_secret", "TEXT"),
+            ("user", "is_totp_enabled", "BOOLEAN DEFAULT 0"),
+            ("user", "totp_backup_codes", "TEXT"),
             ("vex_document", "signature_algorithm", "TEXT DEFAULT 'ECDSA P-256'"),
             ("vex_document", "key_id", "TEXT DEFAULT 'zenix-ecdsa-key-1'"),
             ("vex_document", "signature_timestamp", "DATETIME"),

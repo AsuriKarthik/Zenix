@@ -15,7 +15,7 @@ with app.app_context():
     print("-" * 100)
     for u in users:
         pwd_preview = (u.password_hash[:16] + "...") if u.password_hash else "(none)"
-        etw_preview = "etw123456" if (u.etw_collector_password_hash or u.etw_passphrase_hash) else "(same as account)"
+        etw_preview = "(configured / hashed)" if (u.etw_collector_password_hash or u.etw_passphrase_hash) else "(same as account)"
         sec_q = (u.security_question[:22] + "...") if u.security_question else "What is your role?"
         print(f"{u.id:<4} | {u.email:<30} | {pwd_preview:<20} | {etw_preview:<15} | {sec_q:<25}")
     print("=" * 100)

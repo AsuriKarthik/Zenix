@@ -279,6 +279,8 @@ def _execute_pipeline(job: Job, sbom_bytes: bytes) -> None:
                 nvd_fetched_at=match.nvd_fetched_at,
                 epss_fetched_at=enrichment.epss_fetched_at,
                 kev_cached_at=_utcnow(),
+                shodan_exposed_hosts=enrichment.shodan_exposed_hosts,
+                virustotal_detections=enrichment.virustotal_detections,
             )
             db.session.add(vuln)
             db.session.flush()  # assign vuln.id

@@ -373,48 +373,93 @@ def generate_vex_documents_for_job(job_id: str) -> List[VexDocument]:
     return created_docs
 
 
-def generate_vex_documents_for_runtime(date_str: str = 'today') -> List[VexDocument]:
+def generate_vex_documents_for_runtime(date_str: str = 'today', user_id: Optional[int] = None) -> List[VexDocument]:
     """
     Generate and persist signed CycloneDX VEX Compliance Documents
     for Live Runtime Telemetry inventory findings on a specified history date.
+    Each finding on that date receives a distinct, cryptographically signed VEX record
+    bound to a dedicated runtime compliance Job (e.g. job-rt-YYYYMMDD).
     """
-    from db import RuntimeInventory, Job
+    from db import RuntimeInventory, Job, EtwEvent
     from datetime import timedelta
+    import hashlib
+    from agents.reachability_resolver import is_system_os_dll
 
-    # Get baseline scan job or latest done job
-    latest_job = Job.query.order_by(db.desc(Job.submitted_at)).first()
+    # Determine standard date string YYYY-MM-DD
+    if not date_str or date_str in ('today', 'TODAY'):
+        target_date_str = _utcnow().strftime('%Y-%m-%d')
+    elif date_str in ('yesterday', 'YESTERDAY'):
+        target_date_str = (_utcnow() - timedelta(days=1)).strftime('%Y-%m-%d')
+    else:
+        target_date_str = date_str
 
-    if not latest_job:
+    clean_date = target_date_str.replace('-', '')
+    target_job_id = f"job-rt-{clean_date}"
+
+    # Get or create dedicated runtime telemetry Job for this date
+    rt_job = Job.query.filter_by(id=target_job_id).first()
+    if not rt_job:
         try:
-            latest_job = Job(id="runtime-telemetry-scan", sbom_filename=f"Live Telemetry ({date_str})", status="done")
-            db.session.add(latest_job)
+            rt_job = Job(
+                id=target_job_id,
+                user_id=user_id,
+                job_type='runtime_telemetry',
+                sbom_format='CycloneDX-VEX-Runtime',
+                sbom_sha256=hashlib.sha256(target_job_id.encode()).hexdigest(),
+                sbom_filename=f"Live Runtime Telemetry ({target_date_str})",
+                status='done',
+                progress_pct=100,
+                submitted_at=_utcnow(),
+                started_at=_utcnow(),
+                finished_at=_utcnow(),
+            )
+            db.session.add(rt_job)
             db.session.commit()
         except Exception:
             db.session.rollback()
-            latest_job = Job.query.first()
+            rt_job = Job.query.filter_by(id=target_job_id).first()
+    elif user_id and not rt_job.user_id:
+        rt_job.user_id = user_id
+        db.session.commit()
 
-    target_job_id = latest_job.id if latest_job else "runtime-telemetry-scan"
+    # Query RuntimeInventory for the exact target date
+    inv_query = RuntimeInventory.query.filter(
+        db.func.strftime('%Y-%m-%d', RuntimeInventory.last_seen) == target_date_str
+    )
+    raw_items = inv_query.order_by(db.desc(RuntimeInventory.last_seen)).all()
 
-    inv_query = RuntimeInventory.query
+    # Filter strictly for actual security / drift findings matching Findings page
+    finding_items = []
+    for item in raw_items:
+        # Ignore normal declared OS DLLs / components that are not findings
+        if item.finding_category not in ('INVENTORY_DRIFT', 'UNKNOWN_RUNTIME_COMPONENT', 'RUNTIME_ACTIVE_VULNERABILITY'):
+            continue
+        if is_system_os_dll(item.executable_path, item.component_name or item.process_name):
+            continue
+        finding_items.append(item)
 
-    if date_str == 'today':
-        target_date_str = _utcnow().strftime('%Y-%m-%d')
-        inv_query = inv_query.filter(db.func.strftime('%Y-%m-%d', RuntimeInventory.last_seen) == target_date_str)
-    elif date_str == 'yesterday':
-        target_date_str = (_utcnow() - timedelta(days=1)).strftime('%Y-%m-%d')
-        inv_query = inv_query.filter(db.func.strftime('%Y-%m-%d', RuntimeInventory.last_seen) == target_date_str)
-    elif date_str and date_str != 'all':
-        inv_query = inv_query.filter(db.func.strftime('%Y-%m-%d', RuntimeInventory.last_seen) == date_str)
-
-    items = inv_query.all()
-    if not items:
-        items = RuntimeInventory.query.filter_by(status='ACTIVE').all()
+    # Fallback if no specific date items exist and date_str is today/all:
+    if not finding_items and date_str in ('today', 'TODAY', 'all'):
+        active_items = RuntimeInventory.query.filter_by(status='ACTIVE').all()
+        for item in active_items:
+            if item.finding_category in ('INVENTORY_DRIFT', 'UNKNOWN_RUNTIME_COMPONENT', 'RUNTIME_ACTIVE_VULNERABILITY'):
+                if not is_system_os_dll(item.executable_path, item.component_name or item.process_name):
+                    finding_items.append(item)
 
     created_docs: List[VexDocument] = []
     keypair = get_vex_keypair()
 
-    for item in items:
-        cve_id = item.matched_cve_id or item.finding_category or "INVENTORY_DRIFT"
+    for item in finding_items:
+        proc_display = item.process_name or (os.path.basename(item.executable_path) if item.executable_path else "Process")
+        # Format cve_id cleanly
+        if item.matched_cve_id:
+            cve_id = item.matched_cve_id
+        elif item.finding_category == 'INVENTORY_DRIFT':
+            cve_id = f"INVENTORY_DRIFT ({proc_display})"
+        elif item.finding_category == 'UNKNOWN_RUNTIME_COMPONENT':
+            cve_id = f"UNKNOWN_COMPONENT ({proc_display})"
+        else:
+            cve_id = f"{item.finding_category} ({proc_display})"
 
         if item.finding_category == 'RUNTIME_ACTIVE_VULNERABILITY':
             vex_status = 'affected'
@@ -427,8 +472,8 @@ def generate_vex_documents_for_runtime(date_str: str = 'today') -> List[VexDocum
             justification = 'vulnerable_code_not_in_execute_path'
 
         evidence_summary = (
-            f"Live Telemetry Compliance Observation via ETW/psutil | Process: {item.process_name} (PID {item.pid or 0}) | "
-            f"Path: {item.executable_path} | Category: {item.finding_category} | Date: {date_str}"
+            f"Live Telemetry Compliance Observation via ETW/psutil | Process: {proc_display} (PID {item.pid or 0}) | "
+            f"Path: {item.executable_path} | Category: {item.finding_category} | Date: {target_date_str}"
         )
 
         doc_dict = {
@@ -440,7 +485,7 @@ def generate_vex_documents_for_runtime(date_str: str = 'today') -> List[VexDocum
                 "timestamp": _utcnow().isoformat() + "Z",
                 "tools": [{"name": "Zenix Engine", "version": "2.0.0"}],
                 "component": {
-                    "name": item.component_name or item.process_name,
+                    "name": item.component_name or proc_display,
                     "version": item.version or f"PID {item.pid or 0}",
                     "type": "application"
                 }
@@ -459,6 +504,7 @@ def generate_vex_documents_for_runtime(date_str: str = 'today') -> List[VexDocum
         doc_json = json.dumps(doc_dict, indent=2)
         signature_b64 = sign_vex_document(doc_json, keypair)
 
+        # Unique document search scoped to this job and process/PID finding
         existing_doc = VexDocument.query.filter_by(
             job_id=target_job_id,
             cve_id=cve_id
@@ -476,7 +522,8 @@ def generate_vex_documents_for_runtime(date_str: str = 'today') -> List[VexDocum
             existing_doc.generated_at = now_time
             created_docs.append(existing_doc)
         else:
-            vex_uuid = f"VEX-RT-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:6].upper()}"
+            hash_suffix = hashlib.md5(f"{proc_display}_{item.pid}_{item.id}".encode()).hexdigest()[:6].upper()
+            vex_uuid = f"VEX-RT-{clean_date}-{hash_suffix}"
             vex_model = VexDocument(
                 job_id=target_job_id,
                 vex_id=vex_uuid,

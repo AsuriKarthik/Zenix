@@ -88,3 +88,18 @@ class Config:
 
     # ── Asymmetric VEX Signing (Requirement 3) ────────────────────────────────
     VEX_PRIVATE_KEY_PEM: str = os.environ.get('VEX_PRIVATE_KEY_PEM', '')
+
+    # ── Shodan Threat Intelligence ────────────────────────────────────────────
+    SHODAN_API_KEY: str = os.environ.get('SHODAN_API_KEY', '')
+    SHODAN_CACHE_HOURS: int = 12
+
+    # ── VirusTotal Threat Intelligence ────────────────────────────────────────
+    VIRUSTOTAL_API_KEY: str = os.environ.get('VIRUSTOTAL_API_KEY', '')
+    VIRUSTOTAL_CACHE_HOURS: int = 12
+
+    # ── SMTP Email Dispatch (OTP / 2FA) ───────────────────────────────────────
+    SMTP_SERVER: str = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+    SMTP_PORT: int = int(os.environ.get('SMTP_PORT', 587))
+    SMTP_USERNAME: str = os.environ.get('SMTP_USERNAME', '')
+    SMTP_PASSWORD: str = os.environ.get('SMTP_PASSWORD', '')
+    SMTP_FROM: str = os.environ.get('SMTP_FROM', 'no-reply@zenix.security')

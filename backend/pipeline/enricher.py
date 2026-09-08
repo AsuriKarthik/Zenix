@@ -64,6 +64,10 @@ class EnrichmentResult:
     kev_reason: Optional[str] = None
     kev_next_action: Optional[str] = None
 
+    # Live Threat Intelligence Feeds
+    shodan_exposed_hosts: Optional[int] = None
+    virustotal_detections: Optional[int] = None
+
     # Human-readable notes for analyst view and confidence computation
     degradation_notes: list = field(default_factory=list)
 
@@ -104,6 +108,83 @@ def update_feed_status(
         db.session.commit()
     except Exception as exc:
         log.debug("Could not update FeedStatus for %s: %s", feed_name, exc)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Live Shodan & VirusTotal Threat Intelligence
+# ─────────────────────────────────────────────────────────────────────────────
+
+_shodan_cache: dict[str, Optional[int]] = {}
+_vt_cache: dict[str, Optional[int]] = {}
+
+
+def query_shodan_vulnerability(cve_id: str) -> Optional[int]:
+    """
+    Query Shodan for total live exposed hosts vulnerable to `cve_id`.
+    Uses Shodan `count(f"vuln:{cve_id}")` which queries the Shodan indexed internet
+    without consuming export credits on Shodan developer accounts.
+    Returns integer count of exposed hosts, or None if Shodan is unconfigured or failed.
+    """
+    api_key = getattr(Config, 'SHODAN_API_KEY', None)
+    if not api_key:
+        return None
+    if cve_id in _shodan_cache:
+        return _shodan_cache[cve_id]
+    try:
+        import shodan
+        api = shodan.Shodan(api_key)
+        res = api.count(f"vuln:{cve_id}")
+        count = int(res.get("total", 0))
+        _shodan_cache[cve_id] = count
+        update_feed_status("Shodan Intelligence", "https://api.shodan.io", "ONLINE", records_updated=1)
+        return count
+    except Exception as exc:
+        log.warning("Shodan query error for %s: %s", cve_id, exc)
+        update_feed_status("Shodan Intelligence", "https://api.shodan.io", "OFFLINE", error_message=str(exc))
+        _shodan_cache[cve_id] = None
+        return None
+
+
+def query_virustotal_threat(indicator: str) -> Optional[int]:
+    """
+    Query VirusTotal v3 for live threat detection intelligence.
+    - If indicator is a file hash (MD5/SHA1/SHA256), inspects /files/{hash} for malicious engine detections.
+    - If indicator is a CVE ID or software identifier, queries /search?query={indicator} for indexed threat reports.
+    Returns detection count or matched threat records, or None if VT is unconfigured or failed.
+    """
+    api_key = getattr(Config, 'VIRUSTOTAL_API_KEY', None)
+    if not api_key:
+        return None
+    if indicator in _vt_cache:
+        return _vt_cache[indicator]
+    try:
+        import vt
+        with vt.Client(api_key) as client:
+            is_hex = len(indicator) in (32, 40, 64) and all(c in '0123456789abcdefABCDEF' for c in indicator)
+            if is_hex:
+                obj = client.get_object(f"/files/{indicator}")
+                stats = getattr(obj, "last_analysis_stats", {}) or {}
+                detections = int(stats.get("malicious", 0))
+            else:
+                res = client.get_json(f"/search?query={indicator}")
+                data = res.get("data", [])
+                detections = 0
+                for item in data:
+                    item_stats = item.get("attributes", {}).get("last_analysis_stats") or {}
+                    mal = int(item_stats.get("malicious", 0))
+                    if mal > 0:
+                        detections = max(detections, mal)
+                if detections == 0 and data:
+                    detections = len(data)
+
+            _vt_cache[indicator] = detections
+            update_feed_status("VirusTotal Intelligence", "https://www.virustotal.com/api/v3", "ONLINE", records_updated=1)
+            return detections
+    except Exception as exc:
+        log.warning("VirusTotal query error for %s: %s", indicator, exc)
+        update_feed_status("VirusTotal Intelligence", "https://www.virustotal.com/api/v3", "OFFLINE", error_message=str(exc))
+        _vt_cache[indicator] = None
+        return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -333,6 +414,9 @@ def enrich_cves_batch(cve_ids: list[str]) -> dict[str, EnrichmentResult]:
             kev_reason = f"CISA KEV status: {kev_status}."
             kev_next_action = "Verify KEV feed configuration."
 
+        shodan_hosts = query_shodan_vulnerability(cid)
+        vt_threats = query_virustotal_threat(cid)
+
         results[cid] = EnrichmentResult(
             cve_id=cid,
             epss=epss,
@@ -344,6 +428,8 @@ def enrich_cves_batch(cve_ids: list[str]) -> dict[str, EnrichmentResult]:
             kev_status=kev_status,
             kev_reason=kev_reason,
             kev_next_action=kev_next_action,
+            shodan_exposed_hosts=shodan_hosts,
+            virustotal_detections=vt_threats,
             degradation_notes=notes,
         )
 
@@ -356,7 +442,7 @@ def enrich_cves_batch(cve_ids: list[str]) -> dict[str, EnrichmentResult]:
 
 def enrich_cve(cve_id: str) -> EnrichmentResult:
     """
-    Fetch EPSS score and CISA KEV status for a single CVE.
+    Fetch EPSS score, CISA KEV status, and live Shodan/VT intelligence for a single CVE.
     """
     batch_res = enrich_cves_batch([cve_id])
     if cve_id in batch_res:
@@ -378,6 +464,9 @@ def enrich_cve(cve_id: str) -> EnrichmentResult:
     kev_reason = f"CISA KEV status: {kev_status}."
     kev_next_action = "No action required." if 'confirmed' in kev_status else "Check KEV feed connectivity."
 
+    shodan_hosts = query_shodan_vulnerability(cve_id)
+    vt_threats = query_virustotal_threat(cve_id)
+
     return EnrichmentResult(
         cve_id=cve_id,
         epss=epss,
@@ -389,6 +478,8 @@ def enrich_cve(cve_id: str) -> EnrichmentResult:
         kev_status=kev_status,
         kev_reason=kev_reason,
         kev_next_action=kev_next_action,
+        shodan_exposed_hosts=shodan_hosts,
+        virustotal_detections=vt_threats,
         degradation_notes=notes,
     )
 

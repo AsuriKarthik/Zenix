@@ -133,5 +133,6 @@ export function truncateHash(hash, len = 12) {
 export function formatJobId(jobId) {
   if (!jobId) return '—';
   if (jobId.startsWith('ZX-')) return jobId;
+  if (jobId.startsWith('job-rt-')) return `ZX-RT-${jobId.replace('job-rt-', '')}`;
   return `ZX-${jobId.slice(0, 8).toUpperCase()}`;
 }

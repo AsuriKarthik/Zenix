@@ -29,6 +29,7 @@ import {
   XCircle,
   FileText,
   Download,
+  Globe,
 } from 'lucide-react';
 import { listJobs, listFindings, updateAnalystStatus } from '../api/jobs';
 import { getTelemetrySessions } from '../api/telemetry';
@@ -355,7 +356,7 @@ function FindingDetailPanel({ finding, onStatusUpdate }) {
           VULNERABILITY INTELLIGENCE & THREAT METRICS
         </div>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
           <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: 'var(--space-3)', borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.06)' }}>
             <div style={{ fontSize: 10, color: 'rgba(255, 255, 255, 0.5)', fontFamily: 'var(--font-mono)' }}>CVSS SEVERITY RATING</div>
             <div style={{
@@ -424,6 +425,60 @@ function FindingDetailPanel({ finding, onStatusUpdate }) {
                 {finding.kev_reason}
               </div>
             )}
+          </div>
+
+          <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: 'var(--space-3)', borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 10, color: 'rgba(255, 255, 255, 0.5)', fontFamily: 'var(--font-mono)' }}>SHODAN EXPOSED HOSTS</span>
+              <Globe size={12} color="#F97316" />
+            </div>
+            <div style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: isLookupIncomplete || isCleanComponent
+                ? '#94A3B8'
+                : finding.shodan_exposed_hosts && finding.shodan_exposed_hosts > 0
+                ? '#F97316'
+                : '#10B981',
+              marginTop: 4,
+              fontFamily: 'var(--font-mono)'
+            }}>
+              {isLookupIncomplete || isCleanComponent
+                ? 'N/A'
+                : finding.shodan_exposed_hosts !== null && finding.shodan_exposed_hosts !== undefined
+                ? `${finding.shodan_exposed_hosts} Exposed Hosts`
+                : '0 Exposed Hosts'}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--color-accent)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
+              Source: Shodan Global Feed
+            </div>
+          </div>
+
+          <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: 'var(--space-3)', borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 10, color: 'rgba(255, 255, 255, 0.5)', fontFamily: 'var(--font-mono)' }}>VIRUSTOTAL INTELLIGENCE</span>
+              <ShieldAlert size={12} color={finding.virustotal_detections > 0 ? '#EF4444' : '#10B981'} />
+            </div>
+            <div style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: isLookupIncomplete || isCleanComponent
+                ? '#94A3B8'
+                : finding.virustotal_detections && finding.virustotal_detections > 0
+                ? '#EF4444'
+                : '#10B981',
+              marginTop: 4,
+              fontFamily: 'var(--font-mono)'
+            }}>
+              {isLookupIncomplete || isCleanComponent
+                ? 'N/A'
+                : finding.virustotal_detections !== null && finding.virustotal_detections !== undefined
+                ? (finding.virustotal_detections > 0 ? `${finding.virustotal_detections} Threat Detections` : 'Clean (0 Detections)')
+                : 'Clean (0 Detections)'}
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--color-accent)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
+              Source: VirusTotal v3 Analysis
+            </div>
           </div>
         </div>
 
@@ -615,7 +670,9 @@ export default function Findings() {
       const res = await generateRuntimeComplianceReport(dateVal);
       setComplianceMsg({
         text: res.message || `Live Telemetry Compliance Report successfully generated for ${dateVal}.`,
-        count: res.generated_count || 0
+        count: res.generated_count || 0,
+        date: res.report_date || dateVal,
+        jobId: res.job_id || '',
       });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to generate Live Telemetry Compliance Report.');
@@ -889,7 +946,12 @@ export default function Findings() {
           </div>
           <button
             className="btn btn-sm btn-ghost"
-            onClick={() => navigate('/app/vex')}
+            onClick={() => {
+              const qParams = new URLSearchParams();
+              if (complianceMsg.date) qParams.set('date', complianceMsg.date);
+              qParams.set('source', 'live_telemetry');
+              navigate(`/app/vex?${qParams.toString()}`);
+            }}
             style={{ color: '#38BDF8', textDecoration: 'underline', fontSize: 12, fontWeight: 600 }}
           >
             View in VEX / Compliance Tab →
@@ -985,7 +1047,45 @@ export default function Findings() {
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap'
                       }}>
-                        {threatLabel}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span>{threatLabel}</span>
+                          {item.shodan_exposed_hosts > 0 && (
+                            <span
+                              title={`${item.shodan_exposed_hosts} live exposed hosts indexed by Shodan`}
+                              style={{
+                                fontSize: 10,
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                                background: 'rgba(249, 115, 22, 0.15)',
+                                color: '#F97316',
+                                border: '1px solid rgba(249, 115, 22, 0.35)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3
+                              }}
+                            >
+                              <Globe size={10} /> {item.shodan_exposed_hosts}
+                            </span>
+                          )}
+                          {item.virustotal_detections > 0 && (
+                            <span
+                              title={`${item.virustotal_detections} malicious detections in VirusTotal`}
+                              style={{
+                                fontSize: 10,
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                color: '#EF4444',
+                                border: '1px solid rgba(239, 68, 68, 0.35)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3
+                              }}
+                            >
+                              VT: {item.virustotal_detections}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '14px 16px', fontSize: 13, color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         <strong style={{ color: '#f8fafc' }}>{compName}</strong> {compVer ? `(${compVer})` : ''}

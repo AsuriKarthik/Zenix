@@ -334,6 +334,8 @@ def get_triage_summary():
                     "epss": vuln.epss,
                     "epss_source": getattr(vuln, 'epss_source', 'FIRST EPSS'),
                     "is_kev": is_kev,
+                    "shodan_exposed_hosts": vuln.shodan_exposed_hosts,
+                    "virustotal_detections": vuln.virustotal_detections,
                     "reachability_status": reach,
                     "confidence": conf.upper(),
                     "evidence_source": verdict.evidence_source if verdict else 'none',
@@ -896,6 +898,8 @@ def list_findings():
                             epss_source='FIRST EPSS',
                             kev_source='CISA KEV',
                             runtime_source=verdict.evidence_source if verdict else 'none',
+                            shodan_exposed_hosts=enrichment.shodan_exposed_hosts,
+                            virustotal_detections=enrichment.virustotal_detections,
                         )
                         db.session.add(new_vuln)
                         db.session.flush()
@@ -1006,6 +1010,8 @@ def list_findings():
             "kev_source": getattr(vuln, 'kev_source', 'CISA KEV') if has_vuln else 'CISA KEV',
             "kev_reason": getattr(score, 'kev_reason', None) if score else None,
             "kev_next_action": getattr(score, 'kev_next_action', None) if score else None,
+            "shodan_exposed_hosts": vuln.shodan_exposed_hosts if has_vuln else None,
+            "virustotal_detections": vuln.virustotal_detections if has_vuln else None,
             "description": vuln.description if has_vuln else (unscannable_reason or (f"Clean component '{comp.name}@{comp.version or ''}' extracted from SBOM." if not is_lookup_incomplete else "Vulnerability lookup incomplete.")),
             "reachability_status": reach_status,
             "reachability_reason": getattr(score, 'reachability_reason', None) if score else None,

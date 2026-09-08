@@ -84,3 +84,12 @@ export async function getAuditLogs() {
   const res = await client.get('/telemetry/audit-logs');
   return res.data;
 }
+
+/**
+ * GET /api/telemetry/authenticator-qr
+ * Retrieves Google Authenticator pairing QR code for ETW elevation recovery.
+ */
+export async function getEtwAuthenticatorQr() {
+  const res = await client.get('/telemetry/authenticator-qr');
+  return res.data;
+}
