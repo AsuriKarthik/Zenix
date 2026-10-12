@@ -76,12 +76,12 @@ const ComplianceView = () => {
                                         }}
                                         style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', padding: '6px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', cursor: 'pointer', transition: 'all 0.2s' }}
                                         onMouseOver={(e) => {
-                                            e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
                                         }}
                                         onMouseOut={(e) => {
-                                            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                                         }}
                                     >
                                         <Download size={14} /> JSON
@@ -106,7 +106,7 @@ const ComplianceView = () => {
                     padding: '20px'
                 }} onClick={() => setSelectedDoc(null)}>
                     <div style={{
-                        background: '#0f172a', /* Dark slate background matching the site */
+                        background: '#0f172a',
                         border: '1px solid #1e293b',
                         borderRadius: '16px',
                         padding: '24px',

@@ -17,17 +17,17 @@ const SettingsLayout = ({ onLogout }) => {
         <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden' }}>
             {/* Sidebar Navigation */}
             <div style={{ 
-                width: '280px', 
-                minWidth: '280px',
-                borderRight: '1px solid rgba(255, 255, 255, 0.05)', 
-                background: 'rgba(10, 10, 15, 0.5)', 
+                width: '260px', 
+                minWidth: '260px',
+                borderRight: '1px solid rgba(255, 255, 255, 0.08)', 
+                background: '#101211', 
                 display: 'flex', 
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 padding: '24px 16px',
             }}>
                 <div>
-                    <h2 style={{ fontSize: '13px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px', paddingLeft: '12px' }}>Settings</h2>
+                    <h2 style={{ fontSize: '11px', fontWeight: '600', color: '#71717A', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px', paddingLeft: '12px' }}>Workspace Settings</h2>
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     {navItems.map((item) => {
@@ -40,14 +40,14 @@ const SettingsLayout = ({ onLogout }) => {
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '12px',
-                                    padding: '12px',
-                                    borderRadius: '10px',
-                                    background: isActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                    padding: '10px 12px',
+                                    borderRadius: '12px',
+                                    background: isActive ? 'rgba(218, 252, 111, 0.06)' : 'transparent',
                                     border: 'none',
-                                    color: isActive ? '#fff' : '#94a3b8',
+                                    color: isActive ? '#DAFC6F' : '#A1A1AA',
                                     cursor: 'pointer',
                                     textAlign: 'left',
-                                    transition: 'all 0.2s',
+                                    transition: 'all 0.15s ease',
                                 }}
                                 onMouseOver={(e) => {
                                     if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
@@ -56,11 +56,11 @@ const SettingsLayout = ({ onLogout }) => {
                                     if (!isActive) e.currentTarget.style.background = 'transparent';
                                 }}
                             >
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: isActive ? '#3b82f6' : '#64748b' }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: isActive ? '#DAFC6F' : '#71717A' }}>
                                     {item.icon}
                                     {item.id === 'view-profile-actions' && <circle cx="12" cy="7" r="4"></circle>}
                                 </svg>
-                                <span style={{ fontSize: '14px', fontWeight: isActive ? '500' : '400' }}>{item.label}</span>
+                                <span style={{ fontSize: '13px', fontWeight: isActive ? '600' : '500' }}>{item.label}</span>
                             </button>
                         );
                     })}
@@ -73,34 +73,34 @@ const SettingsLayout = ({ onLogout }) => {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '12px',
-                        padding: '12px',
-                        borderRadius: '10px',
+                        padding: '10px 12px',
+                        borderRadius: '12px',
                         background: 'transparent',
                         border: 'none',
-                        color: '#f87171',
+                        color: '#EF4444',
                         cursor: 'pointer',
                         textAlign: 'left',
-                        transition: 'all 0.2s',
+                        transition: 'all 0.15s ease',
                         marginTop: 'auto'
                     }}
                     onMouseOver={(e) => {
-                        e.currentTarget.style.background = 'rgba(248, 113, 113, 0.1)';
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
                     }}
                     onMouseOut={(e) => {
                         e.currentTarget.style.background = 'transparent';
                     }}
                 >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                         <polyline points="16 17 21 12 16 7"></polyline>
                         <line x1="21" y1="12" x2="9" y2="12"></line>
                     </svg>
-                    <span style={{ fontSize: '14px', fontWeight: '500' }}>Log Out</span>
+                    <span style={{ fontSize: '13px', fontWeight: '600' }}>Log Out</span>
                 </button>
             </div>
 
             {/* Main Content Area */}
-            <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(5, 5, 8, 0.3)' }}>
+            <div style={{ flex: 1, overflowY: 'auto', background: '#050807', padding: '24px 32px' }}>
                 <Outlet />
             </div>
         </div>

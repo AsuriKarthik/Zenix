@@ -1,50 +1,56 @@
 import React, { useState } from 'react';
 
 const IntegrationCard = ({ name, type, status, icon, description, onToggle }) => {
+    const isConnected = status === 'connected';
     return (
         <div style={{ 
-            background: 'rgba(15, 15, 20, 0.4)', 
-            borderRadius: '16px', 
-            border: status === 'connected' ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)', 
+            background: '#1E1F23', 
+            borderRadius: '18px', 
+            border: isConnected ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(255, 255, 255, 0.08)', 
             padding: '24px',
             position: 'relative',
             overflow: 'hidden',
-            transition: 'all 0.2s'
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            transition: 'all 0.15s ease'
         }}>
-            {status === 'connected' && (
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#10b981' }} />
+            {isConnected && (
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#22C55E' }} />
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#25272B', border: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
                     {icon}
                 </div>
-                {status === 'connected' ? (
-                    <span style={{ padding: '4px 10px', borderRadius: '20px', background: 'rgba(16, 185, 129, 0.1)', color: '#34d399', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Connected</span>
+                {isConnected ? (
+                    <span style={{ padding: '2px 8px', borderRadius: '6px', background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.15)', color: '#22C55E', fontSize: '11px', fontWeight: '600' }}>Connected</span>
                 ) : (
-                    <span style={{ padding: '4px 10px', borderRadius: '20px', background: 'rgba(255, 255, 255, 0.05)', color: '#94a3b8', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Disconnected</span>
+                    <span style={{ padding: '2px 8px', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', color: '#A1A1AA', fontSize: '11px', fontWeight: '600' }}>Disconnected</span>
                 )}
             </div>
             
-            <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#f8fafc', marginBottom: '4px' }}>{name}</h3>
-            <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '20px', lineHeight: '1.4', height: '36px' }}>{description}</p>
+            <div style={{ flex: 1 }}>
+                <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#F5F5F5', margin: '0 0 4px 0' }}>{name}</h4>
+                <p style={{ color: '#A1A1AA', fontSize: '12.5px', margin: 0, lineHeight: '1.4' }}>{description}</p>
+            </div>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-                <span style={{ color: '#475569', fontSize: '12px' }}>{type}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '12px' }}>
+                <span style={{ color: '#71717A', fontSize: '11px', fontWeight: '500' }}>{type}</span>
                 <button 
                     onClick={onToggle}
                     style={{ 
-                        background: status === 'connected' ? 'rgba(248, 113, 113, 0.1)' : 'rgba(59, 130, 246, 0.1)', 
-                        color: status === 'connected' ? '#f87171' : '#60a5fa', 
-                        border: 'none', 
-                        padding: '6px 16px', 
-                        borderRadius: '6px', 
-                        fontSize: '13px', 
-                        fontWeight: '500', 
+                        background: isConnected ? 'rgba(239, 68, 68, 0.1)' : '#DAFC6F', 
+                        color: isConnected ? '#EF4444' : '#050807', 
+                        border: isConnected ? '1px solid rgba(239, 68, 68, 0.25)' : 'none', 
+                        padding: '6px 14px', 
+                        borderRadius: '14px', 
+                        fontSize: '12px', 
+                        fontWeight: '600', 
                         cursor: 'pointer',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.15s ease'
                     }}
                 >
-                    {status === 'connected' ? 'Disconnect' : 'Connect'}
+                    {isConnected ? 'Disconnect' : 'Connect'}
                 </button>
             </div>
         </div>
@@ -70,16 +76,21 @@ const ApiIntegrationsView = () => {
     };
 
     return (
-        <div style={{ padding: '24px', height: '100%', overflowY: 'auto' }}>
-            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                <button style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '10px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', color: '#F5F5F5' }}>
+            
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>API & Integrations</h3>
+                    <p style={{ fontSize: '13px', color: '#A1A1AA', margin: '4px 0 0 0' }}>Connect your workflow tools and manage access keys.</p>
+                </div>
+                <button style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', color: '#F5F5F5', padding: '8px 16px', borderRadius: '14px', fontSize: '13px', cursor: 'pointer', transition: 'background-color 0.15s ease' }} onMouseOver={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)'} onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                     Browse Directory
                 </button>
             </div>
 
-            <h2 style={{ fontSize: '16px', fontWeight: '500', color: '#e2e8f0', marginBottom: '16px' }}>Featured Integrations</h2>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginBottom: '40px' }}>
+            {/* Featured Integrations Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
                 {integrations.map((int) => (
                     <IntegrationCard 
                         key={int.id} 
@@ -89,46 +100,50 @@ const ApiIntegrationsView = () => {
                 ))}
             </div>
 
-            <div style={{ background: 'rgba(15, 15, 20, 0.4)', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.05)', padding: '24px' }}>
+            {/* Personal Access Tokens Table */}
+            <div style={{ background: '#1E1F23', borderRadius: '18px', border: '1px solid rgba(255, 255, 255, 0.08)', padding: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <div>
-                        <h2 style={{ fontSize: '16px', fontWeight: '500', color: '#e2e8f0', marginBottom: '4px' }}>Personal Access Tokens</h2>
-                        <p style={{ color: '#64748b', fontSize: '13px' }}>Tokens you have generated that can be used to access the Zenix API.</p>
+                        <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Personal Access Tokens</h4>
+                        <p style={{ color: '#A1A1AA', fontSize: '12.5px', margin: '4px 0 0 0' }}>Tokens generated for external API client authentication.</p>
                     </div>
-                    <button style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}>
-                        Generate New Token
+                    <button style={{ background: '#DAFC6F', border: 'none', color: '#050807', padding: '8px 16px', borderRadius: '14px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}>
+                        Generate Token
                     </button>
                 </div>
 
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                    <thead>
-                        <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                            <th style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '12px', fontWeight: '500' }}>Token Name</th>
-                            <th style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '12px', fontWeight: '500' }}>Last Used</th>
-                            <th style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '12px', fontWeight: '500' }}>Expires</th>
-                            <th style={{ padding: '12px 16px', color: '#94a3b8', fontSize: '12px', fontWeight: '500', textAlign: 'right' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.02)' }}>
-                            <td style={{ padding: '16px', color: '#e2e8f0', fontSize: '14px', fontWeight: '500' }}>CI/CD Pipeline Key</td>
-                            <td style={{ padding: '16px', color: '#94a3b8', fontSize: '13px' }}>2 hours ago</td>
-                            <td style={{ padding: '16px', color: '#94a3b8', fontSize: '13px' }}>Never</td>
-                            <td style={{ padding: '16px', textAlign: 'right' }}>
-                                <button style={{ background: 'transparent', border: 'none', color: '#f87171', fontSize: '13px', cursor: 'pointer' }}>Revoke</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td style={{ padding: '16px', color: '#e2e8f0', fontSize: '14px', fontWeight: '500' }}>Local Dev Script</td>
-                            <td style={{ padding: '16px', color: '#94a3b8', fontSize: '13px' }}>Yesterday</td>
-                            <td style={{ padding: '16px', color: '#94a3b8', fontSize: '13px' }}>Oct 24, 2026</td>
-                            <td style={{ padding: '16px', textAlign: 'right' }}>
-                                <button style={{ background: 'transparent', border: 'none', color: '#f87171', fontSize: '13px', cursor: 'pointer' }}>Revoke</button>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                                <th style={{ padding: '12px', color: '#A1A1AA', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase' }}>Token Name</th>
+                                <th style={{ padding: '12px', color: '#A1A1AA', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase' }}>Last Used</th>
+                                <th style={{ padding: '12px', color: '#A1A1AA', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase' }}>Expires</th>
+                                <th style={{ padding: '12px', color: '#A1A1AA', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                                <td style={{ padding: '14px 12px', color: '#F5F5F5', fontSize: '13px', fontWeight: '600' }}>CI/CD Pipeline Key</td>
+                                <td style={{ padding: '14px 12px', color: '#A1A1AA', fontSize: '12.5px' }}>2 hours ago</td>
+                                <td style={{ padding: '14px 12px', color: '#A1A1AA', fontSize: '12.5px' }}>Never</td>
+                                <td style={{ padding: '14px 12px', textAlign: 'right' }}>
+                                    <button style={{ background: 'transparent', border: 'none', color: '#EF4444', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}>Revoke</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ padding: '14px 12px', color: '#F5F5F5', fontSize: '13px', fontWeight: '600' }}>Local Dev Script</td>
+                                <td style={{ padding: '14px 12px', color: '#A1A1AA', fontSize: '12.5px' }}>Yesterday</td>
+                                <td style={{ padding: '14px 12px', color: '#A1A1AA', fontSize: '12.5px' }}>Oct 24, 2026</td>
+                                <td style={{ padding: '14px 12px', textAlign: 'right' }}>
+                                    <button style={{ background: 'transparent', border: 'none', color: '#EF4444', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}>Revoke</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
+            
         </div>
     );
 };
